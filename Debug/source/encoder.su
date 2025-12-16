@@ -1,0 +1,9 @@
+../source/encoder.c:55:6:Encoder_Init	8	static
+../source/encoder.c:64:6:EncoderTask	48	static
+../source/encoder.c:125:6:Encoder_TaskCreate	56	static
+../source/encoder.c:144:9:encoder_turns	16	static
+../source/encoder.c:150:6:Encoder_ButtonWasPressed	4	static
+../source/encoder.c:158:6:Encoder_ButtonIsPressed	4	static
+../source/encoder.c:162:10:Encoder_ButtonGetPressDuration	4	static
+../source/encoder.c:168:6:turn_detect	4	static
+../source/encoder.c:262:13:button_status	16	static

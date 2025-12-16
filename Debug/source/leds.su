@@ -1,0 +1,4 @@
+../source/leds.c:37:6:Leds_Init	8	static
+../source/leds.c:50:6:Led_Control	16	static
+../source/leds.c:69:6:ColorLed_Control	16	static
+../source/leds.c:94:6:Led_Set	16	static

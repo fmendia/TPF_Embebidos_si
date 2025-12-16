@@ -1,0 +1,12 @@
+../source/card.c:57:7:get_card_id	4	static
+../source/card.c:62:6:card_init	8	static
+../source/card.c:70:6:Card_TaskCreate	56	static
+../source/card.c:88:6:CardTask	40	static
+../source/card.c:170:6:card_IRQ_Handler	16	static
+../source/card.c:190:6:save_bit_data	8	static
+../source/card.c:212:6:save_char	24	static
+../source/card.c:219:6:check_init_symbol	16	static
+../source/card.c:228:6:byte2char	24	static
+../source/card.c:251:9:ena_check	4	static
+../source/card.c:271:6:save_data_to_export	16	static
+../source/card.c:278:6:reset_card_functions	4	static

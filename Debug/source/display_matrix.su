@@ -1,0 +1,7 @@
+../source/display_matrix.c:19:13:Color_To_RGB	24	static
+../source/display_matrix.c:36:13:Draw_Person	32	static
+../source/display_matrix.c:58:13:Matrix_Push	16	static
+../source/display_matrix.c:73:6:Matrix_Init	8	static
+../source/display_matrix.c:79:6:Matrix_Clear	16	static
+../source/display_matrix.c:90:6:Matrix_AddPerson	24	static
+../source/display_matrix.c:117:6:Matrix_RemovePerson	16	static

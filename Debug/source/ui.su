@@ -1,0 +1,3 @@
+../source/ui.c:25:7:UI_GetQueue	4	static
+../source/ui.c:37:13:UITask	40	static
+../source/ui.c:70:6:UI_Init	56	static

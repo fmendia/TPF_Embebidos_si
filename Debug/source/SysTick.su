@@ -1,0 +1,3 @@
+../source/SysTick.c:44:6:SysTick_Manager	16	static
+../source/SysTick.c:60:7:SysTick_GetFrec	24	static
+../source/SysTick.c:75:6:SysTick_Init	8	static

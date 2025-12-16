@@ -1,0 +1,14 @@
+../source/database.c:22:6:DB_Init	4	static
+../source/database.c:28:5:DB_FindUserById	24	static
+../source/database.c:43:12:DB_GetUserByIndex	16	static
+../source/database.c:55:9:DB_GetUserPinLength	16	static
+../source/database.c:66:6:DB_VerifyPin	24	static
+../source/database.c:81:6:DB_AddUser	32	static
+../source/database.c:111:6:DB_DeleteUser	24	static
+../source/database.c:140:6:DB_IsAdmin	16	static
+../source/database.c:152:5:DB_GetTotalSlots	4	static
+../source/database.c:157:5:DB_FindEmptySlot	16	static
+../source/database.c:167:5:DB_ChangeUserPin	24	static
+../source/database.c:189:6:DB_SetUserInBuilding	16	static
+../source/database.c:200:6:DB_IsUserInBuilding	16	static
+../source/database.c:211:9:DB_GetUserFloor	16	static

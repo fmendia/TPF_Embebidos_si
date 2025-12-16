@@ -1,0 +1,11 @@
+../source/display.c:50:7:Display_Init	8	static
+../source/display.c:70:7:display_char	24	static
+../source/display.c:82:6:clear_display	24	static
+../source/display.c:88:6:clear_digit	24	static
+../source/display.c:98:6:display_brightness	16	static
+../source/display.c:109:6:shift_display	32	static
+../source/display.c:129:6:shift_display_reposition	24	static
+../source/display.c:149:10:num27seg	16	static
+../source/display.c:234:11:seg2port	24	static
+../source/display.c:244:7:num2disp	16	static
+../source/display.c:249:7:display_select	16	static

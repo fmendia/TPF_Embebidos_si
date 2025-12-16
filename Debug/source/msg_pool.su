@@ -1,0 +1,3 @@
+../source/msg_pool.c:8:6:MsgPool_Init	24	static
+../source/msg_pool.c:23:16:MsgPool_Alloc	24	static
+../source/msg_pool.c:32:6:MsgPool_Free	16	static

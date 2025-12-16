@@ -1,0 +1,17 @@
+../source/display_rtos.c:53:13:TaskDisplay	32	static
+../source/display_rtos.c:64:6:Display_TaskCreate	56	static
+../source/display_rtos.c:83:7:Display_Init	16	static
+../source/display_rtos.c:104:7:display_char	40	static
+../source/display_rtos.c:120:7:display_string4	16	static
+../source/display_rtos.c:132:6:clear_display	32	static
+../source/display_rtos.c:143:6:clear_digit	40	static
+../source/display_rtos.c:158:6:display_brightness	16	static
+../source/display_rtos.c:169:6:shift_display	40	static
+../source/display_rtos.c:194:6:shift_display_reposition	32	static
+../source/display_rtos.c:214:6:refresh_display	24	static
+../source/display_rtos.c:241:6:ScrollMessage	32	static
+../source/display_rtos.c:275:10:num27seg	16	static
+../source/display_rtos.c:360:11:seg2port	24	static
+../source/display_rtos.c:370:7:num2disp	16	static
+../source/display_rtos.c:375:7:display_select	16	static
+../source/display_rtos.c:396:7:led_select	16	static
