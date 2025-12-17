@@ -83,7 +83,11 @@ void input2disp(uint8_t* str);
  * @param position Position on the display (0-3)
  */
 void display_char(uint8_t digit, uint8_t position);
-void display_string4(uint8_t* str);
+/**
+ * @brief Displays a 4-character string on the four 7-segment display
+ * @param str Pointer to the string to be displayed
+ */
+void display_string4(const char* str);
 /**
  * @brief Sets the brightness of the display
  * @param brightness Brightness level (0-255)

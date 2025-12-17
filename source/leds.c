@@ -13,12 +13,16 @@
 #include "gpio.h"
 #include <stdbool.h>
 
+#define LED_SLEEP_TIME 20 //in ms
+
+OS_TCB  LedsTaskTCB;
+CPU_STK LedsTaskStk[LEDS_TASK_STACKSIZE];
+
 /*******************************************************************************
  * FUNCTION PROTOTYPES FOR PRIVATE FUNCTIONS WITH FILE LEVEL SCOPE
  ******************************************************************************/
 
-//void Led_Set(uint8_t led); DESCOMENTAR PARA USO POSTA
-//void Led_Callback(void);
+void Led_Set(uint8_t led);
 
 /*******************************************************************************
  * GLOBAL VARIABLES
@@ -45,6 +49,45 @@ void Leds_Init(void) {
     gpioWrite(PIN_LED_BLUE, HIGH);
     gpioWrite(PIN_LED_GREEN, HIGH);
 //    SysTick_Manager(Led_Callback, 25); // Con 20 se ve re brillante
+}
+
+void Leds_Task(void *p_arg){
+    (void)p_arg;
+    OS_ERR err;
+
+    while (1) {
+        // Update LEDs based on their states
+        for (uint8_t led = 0; led < 3; led++) {
+            if (leds[led]) {
+                Led_Set(led);
+                break; // Only one LED can be on at a time
+            }
+            if (led == 2) {
+                Led_Set(3); // Turn off all LEDs if none are on
+            }
+        }
+
+        // Sleep until next update
+        OSTimeDlyHMSM(0, 0, 0, LED_SLEEP_TIME, OS_OPT_TIME_HMSM_STRICT, &err);
+    }
+}
+
+void Leds_TaskCreate(void){
+    OS_ERR err;
+
+    OSTaskCreate(&LedsTaskTCB,
+                 "Leds Task",
+                 Leds_Task,
+                 0,
+                 LEDS_TASK_PRIO,
+                 &LedsTaskStk[0],
+                 LEDS_TASK_STACKSIZE / 10,
+                 LEDS_TASK_STACKSIZE,
+                 0,
+                 0,
+                 0,
+                 (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+                 &err);
 }
 
 void Led_Control(uint8_t led, bool state) {
@@ -111,20 +154,3 @@ void Led_Set(uint8_t led) {
             break;
     }
 }
-
-/*******************************************************************************
- ******************************************************************************/
-
-//PASAR RTOS
-
-//void Led_Callback(void){
-//    static uint8_t led = 0;
-//
-//    Led_Set(3); // Turn off all LEDs before changing the state
-//    if(leds[led]){
-//        Led_Set(led); // Turn on the LED if its state is true
-//    }
-//    if(++led >= 3){
-//        led = 0; // Reset the LED index
-//    }
-//}

@@ -21,8 +21,8 @@ static const int DB_USER_COUNT = sizeof(user_db) / sizeof(user_db[0]);
 
 void DB_Init(void)
 {
-    /* Database already initialized with static array */
-    /* Can be extended later for EEPROM/Flash loading */
+    DB_DeleteUser(2); // delete user at index 2
+    DB_DeleteUser(3); // delete user at index 3
 }
 
 int DB_FindUserById(const char *id)
@@ -78,7 +78,7 @@ bool DB_VerifyPin(int user_idx, const char *pin, uint8_t pin_len)
     return (strncmp(user_db[user_idx].pin, pin, pin_len) == 0);
 }
 
-bool DB_AddUser(const char *id, const char *pin, uint8_t pin_len)
+bool DB_AddUser(const char *id, const char *pin, uint8_t pin_len, uint8_t user_floor)
 {
     if (!id || !pin) {
         return false;
@@ -104,7 +104,8 @@ bool DB_AddUser(const char *id, const char *pin, uint8_t pin_len)
     strncpy(user_db[empty_idx].pin, pin, pin_len);
     user_db[empty_idx].pin[pin_len] = '\0';
     user_db[empty_idx].pin_len = pin_len;
-
+    user_db[empty_idx].in_building = false;
+    user_db[empty_idx].user_floor = user_floor;
     return true;
 }
 

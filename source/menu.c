@@ -41,7 +41,12 @@ typedef enum {
     S_CHANGE_PIN_OLDPIN,
     S_CHANGE_PIN_LETNEWLEN,
     S_CHANGE_PIN_NEWPIN,
-    S_DONE
+    S_DONE,
+    S_NEW,
+    S_MENU_ADMIN,
+    S_ADD_USER_ID,
+    S_ADD_USER_PIN,
+    S_DELETE_USER
 } menu_state_t;
 
 /* Contexto del menú: todos los datos necesarios */
@@ -49,6 +54,7 @@ typedef struct {
     menu_state_t state;
 
     int main_index;         // 0=ID,1=BRIG,2=CHANGE PIN 
+    int menu_admin_index;  // 0=ADD USER,1=DELETE USER
 
     /* ID buffer */
     char id_buf[DB_ID_LENGTH + 1];
@@ -82,29 +88,174 @@ static char id_edit = '0';
 static char pin_edit = '0';
 
 
+//Prototipos de funciones internas
 
-// Lo hice ahora, luego reemplzar con funcion en display_rtos.h
-static void show_literal4(const char *s)
-{
-    for (int j = 0; j < DISPLAY_DIGITS; ++j) {
-        int disp_pos = 3 - j; /* leftmost -> pos 3 */
-        display_char(s[j], disp_pos);
-    }
-}
+//Renders: Mostrar en display segun el estado actual
+static void render_main_menu(void);
+static void render_brightness(int bri);
+static void render_id_input(void);
+static void render_pin_input(void);
+static void render_menu_admin(void);
 
-//Idem, quedo de testing
-static void show_blank(void)
-{
-    for (int p = 0; p < DISPLAY_DIGITS; ++p) display_char(' ', p);
-}
+
+
+//Funciones para entrar a los distintos estados, cambian variables de contexto y hacen render inicial
+static void enter_main_menu(void);
+static void enter_brightness(void);
+static void enter_id_input_state(void);
+static void enter_pin_input_for_user(int user_idx);
+static void enter_change_pin_id(void);
+
+//Input handling
+static void handle_encoder_move_int(int32_t delta);
+static void handle_button_shortpress (void);
+static void handle_longpress_backspace(void);
+
+//Funciones para procesar id y pin ingresados
+static void process_entered_pin_for_user(void);
+static void process_entered_new_pin_for_user(void);
+static void process_entered_id_for_user(void);
+
+//Funciones auxiliares
+static void main_move(int delta);
+static void menu_admin_move(int delta);
+char select_char_with_encoder(int32_t delta);
 
 /* render main menu option */
 static const char *main_texts[3] = { "ID  ", "BRIG", "PIN " };
 
+/************************** Functions *************************************************************************** */
+/* Initialization */
+void Menu_Init(void)
+{
+    DB_Init();  /* NEW: initialize database */
+
+    memset(&menu_context, 0, sizeof(menu_context));
+    menu_context.state = S_MAIN_MENU;
+    menu_context.main_index = 0;
+    menu_context.menu_admin_index = 0;
+    menu_context.cursor_on = true;
+    menu_context.window_start = 0;
+    menu_context.blink_ms_acc = 0;
+    menu_context.state_ms_acc = 0;
+    render_main_menu();
+}
+
+/* ------------------ External message handler ------------------ */
+//Este es la posta. Maneja los mensajes entrantes y llama a el handler correspondiente segun el tipo de evento.
+void Menu_HandleMessage(UI_Message_t *pmsg)
+{
+    if (!pmsg) return;
+
+    switch (pmsg->type) {
+        case UI_EVENT_ENCODER_MOVE:
+            handle_encoder_move_int(pmsg->data.encoder_delta);
+            break;
+        case UI_EVENT_ENCODER_BUTTON:
+            handle_button_shortpress();
+            break;
+        case UI_EVENT_ENCODER_LONGPRESS:
+            /* backspace semantics */
+            handle_longpress_backspace();
+            break;
+        case UI_EVENT_CARD_READ:
+            /* copy up to ID_LEN, validate immediately */
+            memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));
+            for (int i = 0; i < ID_LEN; ++i) {
+                menu_context.id_buf[i] = pmsg->data.card_id[i] ? pmsg->data.card_id[i] : '0';
+            }
+            menu_context.id_buf[ID_LEN] = '\0';
+            {
+                int idx = DB_FindUserById(menu_context.id_buf);
+                if (idx >= 0) 
+                {
+                    if (DB_IsAdmin(idx))
+                    {
+                        menu_context.state = S_MENU_ADMIN;
+                       enter_menu_admin();
+                    }
+                    else
+                    {
+                       // menu_context.state = S_ID_INPUT;
+                        enter_pin_input_for_user(idx);
+                    }	
+                }
+                else { menu_context.state = S_ERROR; menu_context.state_ms_acc = 0; display_string4("ERR "); }
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+/* ------------------ Tick handling ------------------ */
+
+/* Menu_Tick called on timeout.
+   We accumulate time and toggle cursor every MENU_CURSOR_BLINK_MS. 
+   Para hacer los renders necesarios cuando no se ingresa ningun msg*/
+void Menu_Tick(void)
+{
+    menu_context.blink_ms_acc += 200u;
+    if (menu_context.blink_ms_acc >= MENU_CURSOR_BLINK_MS) {
+        menu_context.blink_ms_acc = 0;
+        menu_context.cursor_on = !menu_context.cursor_on;
+
+        /* re-render visible state for blink */
+        switch (menu_context.state) {
+            case S_MAIN_MENU: render_main_menu(); break;
+            case S_BRIGHTNESS: break; /* static */
+            case S_ID_INPUT: render_id_input(); break;
+            case S_PIN_INPUT: render_pin_input(); break;
+            case S_CHANGE_PIN_ID: render_id_input(); break;
+            case S_CHANGE_PIN_OLDPIN: render_pin_input(); break;
+            case S_CHANGE_PIN_NEWPIN: render_pin_input(); break;
+            case S_MENU_ADMIN: render_menu_admin(); break;
+            case S_ADD_USER_ID: render_id_input(); break;
+            case S_ADD_USER_PIN: render_pin_input(); break;
+            case S_WELCOME:
+                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
+                if (menu_context.state_ms_acc >= WELCOME_MS) {
+                    menu_context.state = S_MAIN_MENU;
+                    render_main_menu();
+                }
+                break;
+            case S_DONE:
+                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
+                if (menu_context.state_ms_acc >= DONE_MS) {
+                    menu_context.state = S_MAIN_MENU;
+                    render_main_menu();
+                }
+                break;
+            case S_ERROR:
+                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
+                if (menu_context.state_ms_acc >= MENU_CURSOR_BLINK_MS * 2) {
+                    menu_context.state = S_MAIN_MENU;
+                    render_main_menu();
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    else if(menu_context.blink_ms_acc >= SCROLL_MESSAGE_MS)
+    {
+        // Additional handling for scrolling messages can be added here
+        ScrollMessage(menu_context.scroll_msg);
+    }
+}
+
+/* Force show home */
+void Menu_ShowHome(void)
+{
+    menu_context.state = S_MAIN_MENU;
+    render_main_menu();
+}
+/* ------------------ Render functions ------------------ */
+
 static void render_main_menu(void)
 {
     if (menu_context.main_index < 2) {
-        show_literal4(main_texts[menu_context.main_index]);
+        display_string4(main_texts[menu_context.main_index]);
     }
     else {
        strcpy(menu_context.scroll_msg, "CHG PIN   "); 
@@ -112,12 +263,21 @@ static void render_main_menu(void)
     }
     
 }
-
+static void render_menu_admin(void)
+{
+    if (menu_context.menu_admin_index == 0) {
+        display_string4("ADD ");
+    }
+    else {
+       display_string4("DEL ");
+    }
+    
+}
 /* render brightness preview: show 'B' + digit */
 static void render_brightness(int bri)
 {
     char t[5] = { ' ', 'B', (char)('0' + bri), ' ' };
-    show_literal4(t);
+    display_string4(t);
 }
 /* render ID input: blinking cursor */
 void render_id_input(void)
@@ -166,34 +326,7 @@ static void render_pin_input(void)
         }
     }
 }
-
-/* show ERROR and enable red LED */
-static void show_error(void)
-{
-    show_literal4("ERR ");
-    ColorLed_Control('R', true);
-}
-
-/* show WELCOME and green LED */
-static void show_welcome(void)
-{
-    show_literal4("WELC");
-    ColorLed_Control('G', true);
-}
-
-/* show DONE */
-static void show_done(void)
-{
-    show_literal4("DONE");
-}
-
-/* clear leds */
-static void clear_leds(void)
-{
-    ColorLed_Control('R', false);
-    ColorLed_Control('G', false);
-}
-
+/* ------------------ State changes ------------------ */
 //Como entrar a los distintos estados
 static void enter_main_menu(void)
 {
@@ -252,32 +385,15 @@ static void enter_change_pin_id(void)
     render_id_input();
 }
 
+static void enter_menu_admin(void)
+{
+    menu_context.state = S_MENU_ADMIN;
+    display_string4("ADM ");
+    render_menu_admin();
+}
+
+
 /* ------------------ Input handling ------------------ */
-
-/* Helper to move main selection (wraparound) */
-static void main_move(int delta)
-{
-    menu_context.main_index += delta;
-    if (menu_context.main_index < 0) menu_context.main_index = 2;
-    if (menu_context.main_index > 2) menu_context.main_index = 0;
-    render_main_menu();
-}
-
-//mismo que en tp1
-char select_char_with_encoder(int32_t delta)
-{
-    static const char char_list[] = "E0123456789";
-    static int index = 0;
-    int max_index = sizeof(char_list) - 2;//maximo indice es el sizeof menos el terminador y menos 1
-
-    index += delta;
-    if (index < 0)
-        index = max_index;
-    if (index > max_index)
-        index = 0;
-
-    return char_list[index];
-}
 
 //Segun en que estado estoy, hago lo correspondiente al mover el encoder
 static void handle_encoder_move_int(int32_t delta)
@@ -288,6 +404,10 @@ static void handle_encoder_move_int(int32_t delta)
     {
         main_move(delta > 0 ? 1 : -1);//para no mover de a mas de 1 posicion
     }
+    else if(menu_context.state == S_MENU_ADMIN)
+    {
+        menu_admin_move(delta > 0 ? 1 : -1);
+    }
     else if (menu_context.state == S_BRIGHTNESS)
     {
         static int bri = 3;
@@ -297,14 +417,14 @@ static void handle_encoder_move_int(int32_t delta)
         render_brightness(bri);
         display_brightness(bri);
     }
-    else if (menu_context.state == S_ID_INPUT || menu_context.state == S_CHANGE_PIN_ID)
+    else if (menu_context.state == S_ID_INPUT || menu_context.state == S_CHANGE_PIN_ID || menu_context.state == S_ADD_USER_ID || menu_context.state == S_DELETE_USER)
     {
         /* numeric digits 0-9 + E (ENTER) */
         char c = select_char_with_encoder(delta);
         id_edit = c;
         render_id_input();
     }
-    else if (menu_context.state == S_PIN_INPUT || menu_context.state == S_CHANGE_PIN_OLDPIN || menu_context.state == S_CHANGE_PIN_NEWPIN)
+    else if (menu_context.state == S_PIN_INPUT || menu_context.state == S_CHANGE_PIN_OLDPIN || menu_context.state == S_CHANGE_PIN_NEWPIN || menu_context.state == S_ADD_USER_PIN)
     {
         /* numeric digits 0-9 + E (ENTER) */
         char c = select_char_with_encoder(delta);
@@ -329,11 +449,10 @@ static void process_entered_pin_for_user(void)
                     //Si el usuario ya esta en el edificio, lo saco
                     menu_context.state = S_DONE;
                     menu_context.state_ms_acc = 0;
-                    show_done();
-                    ColorLed_Control('G', true);
+                    display_string4("BYE ");
                     pin_edit = '0';//reset editable char
                     id_edit = '0';
-                    Matrix_RemovePerson(piso); //Saco persona del piso 1
+                   // Matrix_RemovePerson(piso); //Saco persona del piso 1
                     DB_SetUserInBuilding(menu_context.idx,false);
                 }
                 else
@@ -341,11 +460,10 @@ static void process_entered_pin_for_user(void)
                     menu_context.pin_attempts = 0;
                     menu_context.state = S_WELCOME;
                     menu_context.state_ms_acc = 0;
-                    show_welcome();
-                    ColorLed_Control('G', true);
+                    display_string4("WELC");
                     pin_edit = '0';//reset editable char
                     id_edit = '0';
-                    Matrix_AddPerson(piso); //Agrego persona al piso 1
+                  //  Matrix_AddPerson(piso); //Agrego persona al piso 1
                     DB_SetUserInBuilding(menu_context.idx,true);
                     
                 }
@@ -353,7 +471,7 @@ static void process_entered_pin_for_user(void)
             else if (menu_context.state == S_CHANGE_PIN_OLDPIN) 
             {//si estoy en cambio de pin y el pin viejo es correcto paso a elegir el nuevo pin
                 menu_context.state = S_CHANGE_PIN_NEWPIN;
-                show_literal4("NEW ");
+                display_string4("NEW ");
                 memset(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
                 menu_context.pin_cursor = 0;
                 menu_context.window_start = 0;
@@ -369,11 +487,10 @@ static void process_entered_pin_for_user(void)
                     DB_DeleteUser(menu_context.idx);
                     menu_context.state = S_ERROR;
                     menu_context.state_ms_acc = 0;
-                    show_error();
-                    ColorLed_Control('R', true);
+                    display_string4("DLT ");
                 } else {
                     menu_context.state_ms_acc = 0;
-                    show_literal4("MAL ");
+                    display_string4("MAL ");
                     memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
                     menu_context.pin_cursor = 0;
                     pin_edit = '0';
@@ -384,7 +501,7 @@ static void process_entered_pin_for_user(void)
     else 
     {
         /* PIN length out of range */
-        show_literal4("RNGE");
+        display_string4("RNGE");
        // menu_context.state = S_ERROR;
         memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
         menu_context.pin_cursor = 0;
@@ -401,12 +518,12 @@ static void process_entered_new_pin_for_user(void)
         DB_ChangeUserPin(menu_context.idx, menu_context.pin_buf, menu_context.pin_cursor);//Esta funcion esta mal, onda hay que ver como cambiar bien el pin y que funcione.
         menu_context.state = S_DONE;
         menu_context.state_ms_acc = 0;
-        show_done();
+        display_string4("DONE");
     } 
     else 
     {
         /* PIN length out of range */
-        show_literal4("RNGE");
+        display_string4("RNGE");
         //menu_context.state = S_ERROR;
         memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
         menu_context.pin_cursor = 0;
@@ -427,13 +544,13 @@ static void process_entered_id_for_user(void)
             enter_pin_input_for_user(idx);
         } else {
             //si no esta, muestro error (error vuelve a main menu)
-            show_error();
+           display_string4("ERR ");
             menu_context.state = S_ERROR;
             menu_context.state_ms_acc = 0;
         }
     } else {
         /* no digits entered yet */
-        show_error();
+        display_string4("ERR ");
         menu_context.state = S_ERROR;
         menu_context.state_ms_acc = 0;
     }
@@ -454,6 +571,28 @@ static void handle_button_shortpress (void)
         menu_context.state = S_MAIN_MENU;
         render_main_menu();
         break;
+    case S_MENU_ADMIN://Selecciono la opcion del menu admin
+        if (menu_context.menu_admin_index == 0) //ADD USER
+        {
+            menu_context.state = S_ADD_USER_ID;
+            memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));//borro buffer
+            menu_context.id_cursor = 0;
+            menu_context.window_start = 0;
+            menu_context.cursor_on = true;
+            menu_context.blink_ms_acc = 0;
+            render_id_input();
+        }
+        else //DELETE USER
+        {
+            menu_context.state = S_DELETE_USER;
+            memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));//borro buffer
+            menu_context.id_cursor = 0;
+            menu_context.window_start = 0;
+            menu_context.cursor_on = true;
+            menu_context.blink_ms_acc = 0;
+            render_id_input();
+        }
+        break;
     case S_ID_INPUT://Proceso el digito ingresado, al ingresar un id
     case S_CHANGE_PIN_ID://Para ambos casos es igual el manejo
         if (id_edit == 'E') //Enter pressed
@@ -470,7 +609,83 @@ static void handle_button_shortpress (void)
             }
         }
         break;
-    
+    case S_DELETE_USER://Proceso el id ingresado para borrar usuario
+        if (id_edit == 'E') //Enter pressed
+        {
+            int idx = DB_FindUserById(menu_context.id_buf);
+            if (idx >= 0) 
+            {
+                if (DB_IsAdmin(idx)) 
+                {
+                    display_string4("ADM ");
+                    menu_context.state = S_ERROR;
+                    menu_context.state_ms_acc = 0;
+                    return;
+                }
+                else{
+                    DB_DeleteUser(idx);
+                    menu_context.state = S_DONE;
+                    menu_context.state_ms_acc = 0;
+                    display_string4("DLT ");
+                }
+                
+            }
+            else 
+            {
+                display_string4("ERR ");
+                menu_context.state = S_ERROR;
+                menu_context.state_ms_acc = 0;
+            }
+        } 
+        else 
+        {//Estoy ingresando digitos
+            if (menu_context.id_cursor < ID_LEN) {
+                menu_context.id_buf[menu_context.id_cursor++] = id_edit;
+                menu_context.id_buf[menu_context.id_cursor] = '\0';
+                //id_edit = '0';
+                render_id_input();
+            }
+        }
+        break;
+    case S_ADD_USER_ID://Proceso el id ingresado para agregar usuario
+        if (id_edit == 'E') //Enter pressed
+        {
+            int idx = DB_FindUserById(menu_context.id_buf);
+            if (idx < 0) 
+            { //Si no existe el usuario
+                if (DB_FindEmptySlot() < 0) //No hay lugar para mas usuarios
+                {
+                    display_string4("FULL");
+                    menu_context.state = S_ERROR;
+                    menu_context.state_ms_acc = 0;
+                    return;
+                }
+                else{
+                    //Hay lugar, sigo con el flujo
+                    menu_context.state = S_ADD_USER_PIN;
+                    memset(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
+                    menu_context.pin_cursor = 0;
+                    menu_context.window_start = 0;
+                    menu_context.cursor_on = true;
+                    render_pin_input();
+                } 
+            }
+            else 
+            {
+                display_string4("EXST");
+                menu_context.state = S_ERROR;
+                menu_context.state_ms_acc = 0;
+            }
+        } 
+        else 
+        {//Estoy ingresando digitos
+            if (menu_context.id_cursor < ID_LEN) {
+                menu_context.id_buf[menu_context.id_cursor++] = id_edit;
+                menu_context.id_buf[menu_context.id_cursor] = '\0';
+                //id_edit = '0';
+                render_id_input();
+            }
+        }
     case S_PIN_INPUT://Proceso el digito ingresado, al ingresar un pin
     case S_CHANGE_PIN_OLDPIN://Es igual el manejo, lo importante es verificar pin del usuario
         if (pin_edit == 'E') {
@@ -500,8 +715,37 @@ static void handle_button_shortpress (void)
             }
         }
         break;
-
-    
+    case S_ADD_USER_PIN://Proceso el pin ingresado para agregar usuario
+        if (pin_edit == 'E') //Enter pressed
+        {
+            if (menu_context.pin_cursor >= PIN_MIN_LEN && menu_context.pin_cursor <= PIN_LEN_MAX) //Si se ingrso un pin del tamano correcto
+            {
+                DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor); //Agrego usuario como no admin y en piso 1
+                menu_context.state = S_DONE;
+                menu_context.state_ms_acc = 0;
+                display_string4("DONE");
+            } 
+            else 
+            {
+                /* PIN length out of range */
+                display_string4("RNGE");
+                //menu_context.state = S_ERROR;
+                memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
+                menu_context.pin_cursor = 0;
+                pin_edit = '0';
+                id_edit = '0';
+            }
+        } 
+        else 
+        {//Estoy ingresando digitos
+            if (menu_context.pin_cursor < PIN_LEN_MAX) {
+                menu_context.pin_buf[menu_context.pin_cursor++] = pin_edit;
+                menu_context.pin_buf[menu_context.pin_cursor] = '\0';
+                //pin_edit = '0';
+                render_pin_input();
+            }
+        }
+        break;   
     default:
         break;
     }
@@ -533,120 +777,37 @@ static void handle_longpress_backspace(void)
         }
     }
 }
-
-/* ------------------ External message handler ------------------ */
-//Este es la posta. Maneja los mensajes entrantes y llama a el handler correspondiente segun el tipo de evento.
-void Menu_HandleMessage(UI_Message_t *pmsg)
+/* ------------------ Helper functions ------------------ */
+/* Helper to move main selection (wraparound) */
+static void main_move(int delta)
 {
-    if (!pmsg) return;
-
-    switch (pmsg->type) {
-        case UI_EVENT_ENCODER_MOVE:
-            handle_encoder_move_int(pmsg->data.encoder_delta);
-            break;
-        case UI_EVENT_ENCODER_BUTTON:
-            handle_button_shortpress();
-            break;
-        case UI_EVENT_ENCODER_LONGPRESS:
-            /* backspace semantics */
-            handle_longpress_backspace();
-            break;
-        case UI_EVENT_CARD_READ:
-            /* copy up to ID_LEN, validate immediately */
-            memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));
-            for (int i = 0; i < ID_LEN; ++i) {
-                menu_context.id_buf[i] = pmsg->data.card_id[i] ? pmsg->data.card_id[i] : '0';
-            }
-            menu_context.id_buf[ID_LEN] = '\0';
-            {
-                int idx = DB_FindUserById(menu_context.id_buf);
-                if (idx >= 0) 
-                {
-                	menu_context.state = S_ID_INPUT;
-                    enter_pin_input_for_user(idx);
-                }
-                else { menu_context.state = S_ERROR; menu_context.state_ms_acc = 0; show_error(); }
-            }
-            break;
-        default:
-            break;
-    }
-}
-
-/* ------------------ Tick handling ------------------ */
-
-/* Menu_Tick called on timeout.
-   We accumulate time and toggle cursor every MENU_CURSOR_BLINK_MS. 
-   Para hacer los renders necesarios cuando no se ingresa ningun msg*/
-void Menu_Tick(void)
-{
-    menu_context.blink_ms_acc += 200u;
-    if (menu_context.blink_ms_acc >= MENU_CURSOR_BLINK_MS) {
-        menu_context.blink_ms_acc = 0;
-        menu_context.cursor_on = !menu_context.cursor_on;
-
-        /* re-render visible state for blink */
-        switch (menu_context.state) {
-            case S_MAIN_MENU: render_main_menu(); break;
-            case S_BRIGHTNESS: break; /* static */
-            case S_ID_INPUT: render_id_input(); break;
-            case S_PIN_INPUT: render_pin_input(); break;
-            case S_CHANGE_PIN_ID: render_id_input(); break;
-            case S_CHANGE_PIN_OLDPIN: render_pin_input(); break;
-            case S_CHANGE_PIN_NEWPIN: render_pin_input(); break;
-            case S_WELCOME:
-                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
-                if (menu_context.state_ms_acc >= WELCOME_MS) {
-                    clear_leds();
-                    menu_context.state = S_MAIN_MENU;
-                    render_main_menu();
-                }
-                break;
-            case S_DONE:
-                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
-                if (menu_context.state_ms_acc >= DONE_MS) {
-                    menu_context.state = S_MAIN_MENU;
-                    render_main_menu();
-                }
-                break;
-            case S_ERROR:
-                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
-                if (menu_context.state_ms_acc >= MENU_CURSOR_BLINK_MS * 2) {
-                    clear_leds();
-                    menu_context.state = S_MAIN_MENU;
-                    render_main_menu();
-                }
-                break;
-            default:
-                break;
-        }
-    }
-    else if(menu_context.blink_ms_acc >= SCROLL_MESSAGE_MS)
-    {
-        // Additional handling for scrolling messages can be added here
-        ScrollMessage(menu_context.scroll_msg);
-    }
-}
-
-/* Force show home */
-void Menu_ShowHome(void)
-{
-    menu_context.state = S_MAIN_MENU;
+    menu_context.main_index += delta;
+    if (menu_context.main_index < 0) menu_context.main_index = 2;
+    if (menu_context.main_index > 2) menu_context.main_index = 0;
     render_main_menu();
 }
 
-/* Initialization */
-void Menu_Init(void)
+static void menu_admin_move(int delta)
 {
-    DB_Init();  /* NEW: initialize database */
+    menu_context.menu_admin_index += delta;
+    if (menu_context.menu_admin_index < 0) menu_context.menu_admin_index = 1;
+    if (menu_context.menu_admin_index > 1) menu_context.menu_admin_index = 0;
+    render_menu_admin();
+}
 
-    memset(&menu_context, 0, sizeof(menu_context));
-    menu_context.state = S_MAIN_MENU;
-    menu_context.main_index = 0;
-    menu_context.cursor_on = true;
-    menu_context.window_start = 0;
-    menu_context.blink_ms_acc = 0;
-    menu_context.state_ms_acc = 0;
-    render_main_menu();
+//mismo que en tp1
+char select_char_with_encoder(int32_t delta)
+{
+    static const char char_list[] = "E0123456789";
+    static int index = 0;
+    int max_index = sizeof(char_list) - 2;//maximo indice es el sizeof menos el terminador y menos 1
+
+    index += delta;
+    if (index < 0)
+        index = max_index;
+    if (index > max_index)
+        index = 0;
+
+    return char_list[index];
 }
 

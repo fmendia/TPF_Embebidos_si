@@ -74,11 +74,11 @@ static void TaskStart(void *p_arg)
 
     //Heartbeat, para ver que sigue corriendo
     while (1) {
-        static bool led_state = false;
-        led_state = !led_state;
-        Led_Control(0, led_state);
+       // static bool led_state = false;
+       // led_state = !led_state;
+       // Led_Control(0, led_state);
 
-        OSTimeDlyHMSM(0,0,0,500,OS_OPT_TIME_HMSM_STRICT,&err);
+       // OSTimeDlyHMSM(0,0,0,500,OS_OPT_TIME_HMSM_STRICT,&err);
     }
 }
 

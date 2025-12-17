@@ -28,6 +28,14 @@ void WS2812_Init(void) {
     
 }
 
+static inline void DMA_Rearm(void)
+{
+    DMA0->TCD[0].SADDR = (uint32_t)&pwm_buffer[0];
+    DMA0->TCD[0].CITER_ELINKNO = TOTAL_BUFF_SIZE;
+    DMA0->TCD[0].BITER_ELINKNO = TOTAL_BUFF_SIZE;
+}
+
+
 void WS2812_Refresh(void) {
     uint32_t buff_idx = 0;
 
@@ -65,24 +73,22 @@ void Delay(uint32_t cycles) {
     while(cycles--) __asm("nop");
 }
 
-void WS2812_Send(void) {
-//if(ws_busy) return;
-//ws_busy = 1;
-	CPU_SR_ALLOC();
-	  	CPU_CRITICAL_ENTER();
+void WS2812_Send(void)
+{
+    //CPU_SR_ALLOC();
+    //CPU_CRITICAL_ENTER();
 
+    //DMA_Rearm();
 
-DMA0->TCD[0].CITER_ELINKNO = LED_COUNT * 24;
-DMA0->TCD[0].BITER_ELINKNO = LED_COUNT * 24;
+    //DMA0->INT = (1 << 0);      // Limpio flag
+    //DMA0->ERQ |= (1 << 0);     // Habilito request
+    //FTM3->CONTROLS[FTM_CHANNEL].CnV = 1;
+    FTM3->CNT = 0;
+    FTM3->SC = FTM_SC_CLKS(1);
 
-
-DMA0->ERQ |= 1 << 0;
-
-
-FTM3->CNT = 0;
-FTM3->SC = FTM_SC_CLKS(1);
-	CPU_CRITICAL_EXIT();
+    //CPU_CRITICAL_EXIT();
 }
+
 
 void DMA_Init(void) {
     DMAMUX->CHCFG[0] = 0;
@@ -103,28 +109,28 @@ void DMA_Init(void) {
     DMA0->TCD[0].CITER_ELINKNO = TOTAL_BUFF_SIZE;
     DMA0->TCD[0].BITER_ELINKNO = TOTAL_BUFF_SIZE;
 
-    DMA0->TCD[0].SLAST = -(TOTAL_BUFF_SIZE * 4);
+    DMA0->TCD[0].SLAST = -(sizeof(pwm_buffer));
     DMA0->TCD[0].DLAST_SGA = 0;
     DMA0->TCD[0].CSR = DMA_CSR_INTMAJOR_MASK;
-
+    DMA0->ERQ |= (1 << 0);
     NVIC_EnableIRQ(DMA0_IRQn);
 }
 
-void DMA0_IRQHandler(void) {
-	CPU_SR_ALLOC();
-  	CPU_CRITICAL_ENTER();
-  	OSIntEnter();
-  	CPU_CRITICAL_EXIT();
-  	OS_ERR os_err;
+void DMA0_IRQHandler(void)
+{
+    CPU_SR_ALLOC();
+    CPU_CRITICAL_ENTER();
+    OSIntEnter();
+    CPU_CRITICAL_EXIT();
+    DMA0->CINT |= (1<<6);
+    //DMA0->CINT |= 0; // LIMPIAR FLAG PRIMERO
+    FTM3->SC = 0;           // stop timer
+    //DMA0->ERQ &= ~(1 << 0);
+   // FTM3->CONTROLS[FTM_CHANNEL].CnV = 0; // FORZAR LOW
 
-	//DMA0->INT |= 1 << 0;
-  	DMA0->INT = (1 << 0);
-	FTM3->SC = 0; // stop timer, line low
-	DMA0->ERQ &= ~(1 << 0);
-	//ws_busy = 0;
-
-	OSIntExit();
+    OSIntExit();
 }
+
 void hw_Init2 (void) {
     // Tu configuración de reloj original (Correcta)
     SCB->CPACR |= ((3UL << 10*2) | (3UL << 11*2));

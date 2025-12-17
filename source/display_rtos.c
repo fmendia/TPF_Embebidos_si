@@ -117,16 +117,14 @@ void Display_TaskCreate(void){
     OSMutexPost((OS_MUTEX *)&MyMutex, (OS_OPT)OS_OPT_PEND_BLOCKING, (OS_ERR*)&os_err);
 }
 
- void display_string4(uint8_t* str)
+ void display_string4(const char* str)
  {
-	 if (sizeof(str)/sizeof(str[0]) < NUMBER_DISPLAYS)
-	 {
-		 int n = 3;
-		 for (int i=0; i<NUMBER_DISPLAYS; i++)
-		 {
-			 display_char(str[n-1-i], i);
-		 }
-	 }
+	
+		  for (int j = 0; j < NUMBER_DISPLAYS; ++j) {
+        int disp_pos = 3 - j; /* leftmost -> pos 3 */
+        display_char(str[j], disp_pos);
+    }
+	 
  }
 
 void clear_display(void){

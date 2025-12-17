@@ -7,7 +7,7 @@
 /* Constants */
 #define DB_ID_LENGTH        8
 #define DB_PIN_MAX_LENGTH   5
-#define DB_ADMIN_ID         "12121212"
+#define DB_ADMIN_ID         "46605700"
 #define DB_ADMIN_PIN        "1234"
 
 /* User entry structure */
@@ -63,7 +63,7 @@ bool DB_VerifyPin(int user_idx, const char *pin, uint8_t pin_len);
  * @param pin_len PIN length
  * @return true if success, false if ID exists or DB full
  */
-bool DB_AddUser(const char *id, const char *pin, uint8_t pin_len);
+bool DB_AddUser(const char *id, const char *pin, uint8_t pin_len, uint8_t user_floor);
 
 /**
  * @brief Delete user by index (clears ID with nulls)

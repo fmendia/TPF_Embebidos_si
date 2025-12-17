@@ -10,9 +10,18 @@
 /*******************************************************************************
  * INCLUDE HEADER FILES
  ******************************************************************************/
-
+#include <os.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+/*******************************************************************************
+ * RTOS VARIABLES
+ ******************************************************************************/
+#define LEDS_TASK_PRIO      4u		//DEFINIR BIEN!
+#define LEDS_TASK_STACKSIZE 256u
+
+extern OS_TCB   LedsTaskTCB;
+extern CPU_STK  LedsTaskStk[LEDS_TASK_STACKSIZE];
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES WITH GLOBAL SCOPE
@@ -38,8 +47,15 @@ void Led_Control(uint8_t led, bool state);
  */
 void ColorLed_Control(uint8_t led, bool state);
 
-//PUBLICO SÓLO PARA TESTEO RTOS ENCODER - BORRAR
-void Led_Set(uint8_t led);
+/**
+ * @brief Creates LED task
+ */
+void Leds_TaskCreate(void);
+
+/**
+ * @brief LED task function
+ */
+void Leds_Task(void *p_arg);
 
 /*******************************************************************************
  ******************************************************************************/
