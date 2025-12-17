@@ -46,7 +46,10 @@ typedef enum {
     S_MENU_ADMIN,
     S_ADD_USER_ID,
     S_ADD_USER_PIN,
-    S_DELETE_USER
+    S_DELETE_USER,
+    S_ADMIN_DONE,
+    S_ADMIN_ERROR,
+    S_RANGE
 } menu_state_t;
 
 /* Contexto del menú: todos los datos necesarios */
@@ -121,6 +124,9 @@ static void process_entered_id_for_user(void);
 static void main_move(int delta);
 static void menu_admin_move(int delta);
 char select_char_with_encoder(int32_t delta);
+static void handle_entered_id_error(void);
+static void handle_entered_pin_range_error(void);
+static void handle_entered_pin_success(void);
 
 /* render main menu option */
 static const char *main_texts[3] = { "ID  ", "BRIG", "PIN " };
@@ -213,6 +219,7 @@ void Menu_Tick(void)
             case S_MENU_ADMIN: render_menu_admin(); break;
             case S_ADD_USER_ID: render_id_input(); break;
             case S_ADD_USER_PIN: render_pin_input(); break;
+            case S_DELETE_USER: render_id_input(); break;
             case S_WELCOME:
                 menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
                 if (menu_context.state_ms_acc >= WELCOME_MS) {
@@ -220,6 +227,12 @@ void Menu_Tick(void)
                     render_main_menu();
                 }
                 break;
+            case S_RANGE:
+                 menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
+                if (menu_context.state_ms_acc >= DONE_MS) {
+                    //menu_context.state = S_MAIN_MENU;
+                   // render_main_menu();
+                }
             case S_DONE:
                 menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
                 if (menu_context.state_ms_acc >= DONE_MS) {
@@ -232,6 +245,20 @@ void Menu_Tick(void)
                 if (menu_context.state_ms_acc >= MENU_CURSOR_BLINK_MS * 2) {
                     menu_context.state = S_MAIN_MENU;
                     render_main_menu();
+                }
+                break;
+            case S_ADMIN_DONE:
+                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
+                if (menu_context.state_ms_acc >= DONE_MS) {
+                    menu_context.state = S_MENU_ADMIN;
+                    render_menu_admin();
+                }
+                break;
+            case S_ADMIN_ERROR:
+                menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
+                if (menu_context.state_ms_acc >= DONE_MS) {
+                    menu_context.state = S_MENU_ADMIN;
+                    render_menu_admin();
                 }
                 break;
             default:
@@ -439,52 +466,92 @@ static void process_entered_pin_for_user(void)
     if (menu_context.pin_cursor >= PIN_MIN_LEN && menu_context.pin_cursor <= PIN_LEN_MAX) //Si se ingrso un pin del tamano correcto
     {
         if (DB_VerifyPin(menu_context.idx, menu_context.pin_buf, menu_context.pin_cursor)) //Si esta el pin
-        {
-            /* success */
-            if(menu_context.state == S_PIN_INPUT) //Welcome si estoty en flujo normal
-            {
-            	uint8_t piso = DB_GetUserFloor(menu_context.idx);
-                if (DB_IsUserInBuilding(menu_context.idx))
-                {
-
-                    //Si el usuario ya esta en el edificio, lo saco
-                    menu_context.state = S_DONE;
-                    menu_context.state_ms_acc = 0;
-                    display_string4("BYE ");
-                    pin_edit = '0';//reset editable char
-                    id_edit = '0';
-                    Matrix_RemovePerson(piso); //Saco persona del piso 1
-                    DB_SetUserInBuilding(menu_context.idx,false);
-                }
-                else
-                {
-                    menu_context.pin_attempts = 0;
-                    menu_context.state = S_WELCOME;
-                    menu_context.state_ms_acc = 0;
-                    display_string4("WELC");
-                    pin_edit = '0';//reset editable char
-                    id_edit = '0';
-                    Matrix_AddPerson(piso); //Agrego persona al piso 1
-                    DB_SetUserInBuilding(menu_context.idx,true);
-                    
-                }
-            } 
-            else if (menu_context.state == S_CHANGE_PIN_OLDPIN) 
-            {//si estoy en cambio de pin y el pin viejo es correcto paso a elegir el nuevo pin
-                menu_context.state = S_CHANGE_PIN_NEWPIN;
-                display_string4("NEW ");
-                memset(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
-                menu_context.pin_cursor = 0;
-                menu_context.window_start = 0;
-                menu_context.cursor_on = true;
-                render_pin_input();
-            }
+        {/* success */ 
+            handle_entered_pin_success();
         } 
         else 
         {//Pin incorrecto. Para ambos casos, si se equivoca el pin 3 veces borra el usuario.
-                menu_context.pin_attempts++;
+            handle_entered_pin_error();
+        }
+    } 
+    else 
+    {
+        handle_entered_pin_range_error();
+    }
+}
+static void handle_entered_pin_range_error(void)
+{
+    /* PIN length out of range */
+        display_string4("RNGE");
+       // menu_context.state = S_ERROR;
+        memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
+        menu_context.pin_cursor = 0;
+        pin_edit = '0';
+        id_edit = '0';
+}
+static void handle_entered_pin_success(void)
+{
+    switch(menu_context.state)
+    {
+        case S_PIN_INPUT:
+            uint8_t piso = DB_GetUserFloor(menu_context.idx);
+            if (DB_IsUserInBuilding(menu_context.idx))
+            {
+                //Si el usuario ya esta en el edificio, lo saco
+                menu_context.state = S_DONE;
+                menu_context.state_ms_acc = 0;
+                display_string4("BYE ");
+                pin_edit = '0';//reset editable char
+                id_edit = '0';
+                Matrix_RemovePerson(piso); //Saco persona del piso 1
+                DB_SetUserInBuilding(menu_context.idx,false);
+            }
+            else
+            {
+                menu_context.pin_attempts = 0;
+                menu_context.state = S_WELCOME;
+                menu_context.state_ms_acc = 0;
+                display_string4("WELC");
+                pin_edit = '0';//reset editable char
+                id_edit = '0';
+                Matrix_AddPerson(piso); //Agrego persona al piso 1
+                DB_SetUserInBuilding(menu_context.idx,true);
+            }
+            break;
+        case S_CHANGE_PIN_OLDPIN:
+            menu_context.state = S_CHANGE_PIN_NEWPIN;
+            display_string4("NEW ");
+            memset(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
+            menu_context.pin_cursor = 0;
+            menu_context.window_start = 0;
+            menu_context.cursor_on = true;
+            render_pin_input();
+            break;
+        case S_CHANGE_PIN_NEWPIN:
+            //Cambio el pin
+            DB_ChangeUserPin(menu_context.idx, menu_context.pin_buf, menu_context.pin_cursor);
+            menu_context.state = S_DONE;
+            menu_context.state_ms_acc = 0;
+            display_string4("DONE");
+            break;
+        case S_ADD_USER_PIN:
+                DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor,1); //Agrego usuario como no admin y en piso 1
+                menu_context.state = S_DONE;
+                menu_context.state_ms_acc = 0;
+                display_string4("DONE");
+            break;
+        default:
+            break;
+    }
+}
+static void handle_entered_pin_error(void)
+{
+    switch(menu_context.state)
+    {
+        case S_PIN_INPUT:
+        case S_CHANGE_PIN_OLDPIN:
+            menu_context.pin_attempts++;
                 if (menu_context.pin_attempts >= 3) {
-                    /* NEW: use DB_DeleteUser */
                     DB_DeleteUser(menu_context.idx);
                     menu_context.state = S_ERROR;
                     menu_context.state_ms_acc = 0;
@@ -497,39 +564,29 @@ static void process_entered_pin_for_user(void)
                     pin_edit = '0';
                     id_edit = '0';
                 }
-        }
-    } 
-    else 
-    {
-        /* PIN length out of range */
-        display_string4("RNGE");
-       // menu_context.state = S_ERROR;
-        memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
-        menu_context.pin_cursor = 0;
-        pin_edit = '0';
-        id_edit = '0';
+            break;
+        case S_CHANGE_PIN_NEWPIN:
+            menu_context.state = S_ERROR;
+            menu_context.state_ms_acc = 0;
+            break;
+        case S_ADD_USER_PIN:
+            menu_context.state = S_ADMIN_ERROR;
+            menu_context.state_ms_acc = 0;
+            break;
+        default:
+            break;
     }
 }
-
 //Es similar a la funcion anterior, pero para el nuevo pin. Las separe por claridad, me estaba re mareando xd
 static void process_entered_new_pin_for_user(void)
 {
      if (menu_context.pin_cursor >= PIN_MIN_LEN && menu_context.pin_cursor <= PIN_LEN_MAX) //Si se ingrso un pin del tamano correcto
     {
-        DB_ChangeUserPin(menu_context.idx, menu_context.pin_buf, menu_context.pin_cursor);//Esta funcion esta mal, onda hay que ver como cambiar bien el pin y que funcione.
-        menu_context.state = S_DONE;
-        menu_context.state_ms_acc = 0;
-        display_string4("DONE");
+        handle_entered_pin_success();
     } 
     else 
     {
-        /* PIN length out of range */
-        display_string4("RNGE");
-        //menu_context.state = S_ERROR;
-        memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
-        menu_context.pin_cursor = 0;
-        pin_edit = '0';
-        id_edit = '0';
+        handle_entered_pin_range_error();
     }
 }
 
@@ -544,18 +601,35 @@ static void process_entered_id_for_user(void)
         {//si esta, entro a pedir pin
             enter_pin_input_for_user(idx);
         } else {
-            //si no esta, muestro error (error vuelve a main menu)
-           display_string4("ERR ");
-            menu_context.state = S_ERROR;
-            menu_context.state_ms_acc = 0;
+            //si no esta, muestro error y vielvo a menu correspondiente
+            display_string4("ERR ");
+            handle_entered_id_error();
         }
     } else {
         /* no digits entered yet */
-        display_string4("ERR ");
-        menu_context.state = S_ERROR;
-        menu_context.state_ms_acc = 0;
+        display_string4("RNGE");
+        handle_entered_id_error();
     }
     return;
+}
+//error en input de id, segun en que estado estoy vuelvo al menu correspondiente
+static void handle_entered_id_error(void)
+{
+    switch(menu_context.state)
+    {
+        case S_ID_INPUT:
+        case S_CHANGE_PIN_ID:
+            menu_context.state = S_ERROR;
+            menu_context.state_ms_acc = 0;
+            break;
+        case S_ADD_USER_ID:
+        case S_DELETE_USER:
+            menu_context.state = S_ADMIN_ERROR;
+            menu_context.state_ms_acc = 0;
+            break;
+        default:
+            break;
+    }
 }
 
 //Handler para el apretado corto del boton: segun en que estado estoy hago lo correspondiente
@@ -703,42 +777,12 @@ static void handle_button_shortpress (void)
         }
         break;
     case S_CHANGE_PIN_NEWPIN://Para poner el nuevo pin, es parecido al caso anterior solo que si aprieto enter guardo el nuevo pin(separado para entender bien jaja)
+    case S_ADD_USER_PIN:
         if (pin_edit == 'E') {
             process_entered_new_pin_for_user();
         } 
         else {
             /* regular digit: append to pin_full */
-            if (menu_context.pin_cursor < PIN_LEN_MAX) {
-                menu_context.pin_buf[menu_context.pin_cursor++] = pin_edit;
-                menu_context.pin_buf[menu_context.pin_cursor] = '\0';
-                //pin_edit = '0';
-                render_pin_input();
-            }
-        }
-        break;
-    case S_ADD_USER_PIN://Proceso el pin ingresado para agregar usuario
-        if (pin_edit == 'E') //Enter pressed
-        {
-            if (menu_context.pin_cursor >= PIN_MIN_LEN && menu_context.pin_cursor <= PIN_LEN_MAX) //Si se ingrso un pin del tamano correcto
-            {
-                DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor,1); //Agrego usuario como no admin y en piso 1
-                menu_context.state = S_DONE;
-                menu_context.state_ms_acc = 0;
-                display_string4("DONE");
-            }
-            else
-            {
-                /* PIN length out of range */
-                display_string4("RNGE");
-                //menu_context.state = S_ERROR;
-                memcpy(menu_context.pin_buf, 0, sizeof(menu_context.pin_buf));
-                menu_context.pin_cursor = 0;
-                pin_edit = '0';
-                id_edit = '0';
-            }
-        }
-        else
-        {//Estoy ingresando digitos
             if (menu_context.pin_cursor < PIN_LEN_MAX) {
                 menu_context.pin_buf[menu_context.pin_cursor++] = pin_edit;
                 menu_context.pin_buf[menu_context.pin_cursor] = '\0';
@@ -755,7 +799,7 @@ static void handle_button_shortpress (void)
 //Backspace handler for long press. Para borrar digitos o volver al menu principal si no hay digitos para borrar
 static void handle_longpress_backspace(void)
 {
-    if (menu_context.state == S_ID_INPUT || menu_context.state == S_CHANGE_PIN_ID) {
+    if (menu_context.state == S_ID_INPUT || menu_context.state == S_CHANGE_PIN_ID|| menu_context.state == S_ADD_USER_ID || menu_context.state == S_DELETE_USER) {
         if (menu_context.id_cursor > 0) {
             /* remove last confirmed digit */
             menu_context.id_cursor--;
@@ -767,7 +811,8 @@ static void handle_longpress_backspace(void)
             menu_context.state = S_MAIN_MENU;
             render_main_menu();
         }
-    } else if (menu_context.state == S_PIN_INPUT || menu_context.state == S_CHANGE_PIN_OLDPIN || menu_context.state == S_CHANGE_PIN_NEWPIN) {
+    } 
+    else if (menu_context.state == S_PIN_INPUT || menu_context.state == S_CHANGE_PIN_OLDPIN || menu_context.state == S_CHANGE_PIN_NEWPIN || menu_context.state == S_ADD_USER_PIN ) {
         if (menu_context.pin_cursor > 0) {
             menu_context.pin_cursor--;
             menu_context.pin_buf[menu_context.pin_cursor] = '\0';
@@ -776,6 +821,11 @@ static void handle_longpress_backspace(void)
             menu_context.state = S_MAIN_MENU;
             render_main_menu();
         }
+    }
+    else if(menu_context.state == S_MENU_ADMIN)
+    {
+        menu_context.state = S_MAIN_MENU;
+        render_main_menu();
     }
 }
 /* ------------------ Helper functions ------------------ */
