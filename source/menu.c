@@ -650,23 +650,17 @@ static void handle_button_shortpress (void)
         if (menu_context.menu_admin_index == 0) //ADD USER
         {
             menu_context.state = S_ADD_USER_ID;
-            memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));//borro buffer
-            menu_context.id_cursor = 0;
-            menu_context.window_start = 0;
-            menu_context.cursor_on = true;
-            menu_context.blink_ms_acc = 0;
-            render_id_input();
         }
         else //DELETE USER
         {
             menu_context.state = S_DELETE_USER;
-            memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));//borro buffer
-            menu_context.id_cursor = 0;
-            menu_context.window_start = 0;
-            menu_context.cursor_on = true;
-            menu_context.blink_ms_acc = 0;
-            render_id_input();
         }
+        memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));//borro buffer
+        menu_context.id_cursor = 0;
+        menu_context.window_start = 0;
+        menu_context.cursor_on = true;
+        menu_context.blink_ms_acc = 0;
+        render_id_input();
         break;
     case S_ID_INPUT://Proceso el digito ingresado, al ingresar un id
     case S_CHANGE_PIN_ID://Para ambos casos es igual el manejo
