@@ -87,6 +87,9 @@ bool DB_VerifyPin(int user_idx, const char *pin, uint8_t pin_len)
     if (!pin || pin_len < 4 || pin_len > 5) {
         return false;
     }
+    if (strlen(user_db[user_idx].pin) != pin_len) {
+        return false;
+    }
 
     return (strncmp(user_db[user_idx].pin, pin, pin_len) == 0);
 }
