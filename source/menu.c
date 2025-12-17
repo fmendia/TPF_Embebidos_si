@@ -453,7 +453,7 @@ static void process_entered_pin_for_user(void)
                     display_string4("BYE ");
                     pin_edit = '0';//reset editable char
                     id_edit = '0';
-                   // Matrix_RemovePerson(piso); //Saco persona del piso 1
+                    Matrix_RemovePerson(piso); //Saco persona del piso 1
                     DB_SetUserInBuilding(menu_context.idx,false);
                 }
                 else

@@ -12,7 +12,7 @@
 
 // Pisos: 16 LEDs (4x4) por piso
 #define FLOOR_LED_COUNT 16
-#define MAX_FLOORS 4
+#define MAX_FLOORS 3
 #define MAX_PEOPLE_PER_FLOOR 4 // Cada persona = bloque 2x2
 
 
