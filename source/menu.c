@@ -105,6 +105,7 @@ static void enter_brightness(void);
 static void enter_id_input_state(void);
 static void enter_pin_input_for_user(int user_idx);
 static void enter_change_pin_id(void);
+static void enter_menu_admin(void);
 
 //Input handling
 static void handle_encoder_move_int(int32_t delta);
@@ -167,7 +168,7 @@ void Menu_HandleMessage(UI_Message_t *pmsg)
             menu_context.id_buf[ID_LEN] = '\0';
             {
                 int idx = DB_FindUserById(menu_context.id_buf);
-                if (idx >= 0) 
+                if (idx >= 0)
                 {
                     if (DB_IsAdmin(idx))
                     {
@@ -176,9 +177,9 @@ void Menu_HandleMessage(UI_Message_t *pmsg)
                     }
                     else
                     {
-                       // menu_context.state = S_ID_INPUT;
-                        enter_pin_input_for_user(idx);
-                    }	
+                        menu_context.state = S_ID_INPUT;
+                    enter_pin_input_for_user(idx);
+                    }
                 }
                 else { menu_context.state = S_ERROR; menu_context.state_ms_acc = 0; display_string4("ERR "); }
             }
@@ -191,7 +192,7 @@ void Menu_HandleMessage(UI_Message_t *pmsg)
 /* ------------------ Tick handling ------------------ */
 
 /* Menu_Tick called on timeout.
-   We accumulate time and toggle cursor every MENU_CURSOR_BLINK_MS. 
+   We accumulate time and toggle cursor every MENU_CURSOR_BLINK_MS.
    Para hacer los renders necesarios cuando no se ingresa ningun msg*/
 void Menu_Tick(void)
 {
@@ -271,7 +272,7 @@ static void render_menu_admin(void)
     else {
        display_string4("DEL ");
     }
-    
+
 }
 /* render brightness preview: show 'B' + digit */
 static void render_brightness(int bri)
@@ -463,7 +464,7 @@ static void process_entered_pin_for_user(void)
                     display_string4("WELC");
                     pin_edit = '0';//reset editable char
                     id_edit = '0';
-                  //  Matrix_AddPerson(piso); //Agrego persona al piso 1
+                    Matrix_AddPerson(piso); //Agrego persona al piso 1
                     DB_SetUserInBuilding(menu_context.idx,true);
                     
                 }
@@ -554,7 +555,7 @@ static void process_entered_id_for_user(void)
         menu_context.state = S_ERROR;
         menu_context.state_ms_acc = 0;
     }
-    return 0;
+    return;
 }
 
 //Handler para el apretado corto del boton: segun en que estado estoy hago lo correspondiente
@@ -613,9 +614,9 @@ static void handle_button_shortpress (void)
         if (id_edit == 'E') //Enter pressed
         {
             int idx = DB_FindUserById(menu_context.id_buf);
-            if (idx >= 0) 
+            if (idx >= 0)
             {
-                if (DB_IsAdmin(idx)) 
+                if (DB_IsAdmin(idx))
                 {
                     display_string4("ADM ");
                     menu_context.state = S_ERROR;
@@ -628,16 +629,16 @@ static void handle_button_shortpress (void)
                     menu_context.state_ms_acc = 0;
                     display_string4("DLT ");
                 }
-                
+
             }
-            else 
+            else
             {
                 display_string4("ERR ");
                 menu_context.state = S_ERROR;
                 menu_context.state_ms_acc = 0;
             }
-        } 
-        else 
+        }
+        else
         {//Estoy ingresando digitos
             if (menu_context.id_cursor < ID_LEN) {
                 menu_context.id_buf[menu_context.id_cursor++] = id_edit;
@@ -651,7 +652,7 @@ static void handle_button_shortpress (void)
         if (id_edit == 'E') //Enter pressed
         {
             int idx = DB_FindUserById(menu_context.id_buf);
-            if (idx < 0) 
+            if (idx < 0)
             { //Si no existe el usuario
                 if (DB_FindEmptySlot() < 0) //No hay lugar para mas usuarios
                 {
@@ -668,16 +669,16 @@ static void handle_button_shortpress (void)
                     menu_context.window_start = 0;
                     menu_context.cursor_on = true;
                     render_pin_input();
-                } 
+                }
             }
-            else 
+            else
             {
                 display_string4("EXST");
                 menu_context.state = S_ERROR;
                 menu_context.state_ms_acc = 0;
             }
-        } 
-        else 
+        }
+        else
         {//Estoy ingresando digitos
             if (menu_context.id_cursor < ID_LEN) {
                 menu_context.id_buf[menu_context.id_cursor++] = id_edit;
@@ -720,12 +721,12 @@ static void handle_button_shortpress (void)
         {
             if (menu_context.pin_cursor >= PIN_MIN_LEN && menu_context.pin_cursor <= PIN_LEN_MAX) //Si se ingrso un pin del tamano correcto
             {
-                DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor); //Agrego usuario como no admin y en piso 1
+                DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor,1); //Agrego usuario como no admin y en piso 1
                 menu_context.state = S_DONE;
                 menu_context.state_ms_acc = 0;
                 display_string4("DONE");
-            } 
-            else 
+            }
+            else
             {
                 /* PIN length out of range */
                 display_string4("RNGE");
@@ -735,8 +736,8 @@ static void handle_button_shortpress (void)
                 pin_edit = '0';
                 id_edit = '0';
             }
-        } 
-        else 
+        }
+        else
         {//Estoy ingresando digitos
             if (menu_context.pin_cursor < PIN_LEN_MAX) {
                 menu_context.pin_buf[menu_context.pin_cursor++] = pin_edit;
@@ -745,7 +746,7 @@ static void handle_button_shortpress (void)
                 render_pin_input();
             }
         }
-        break;   
+        break;
     default:
         break;
     }

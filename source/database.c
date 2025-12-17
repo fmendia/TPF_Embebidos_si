@@ -3,7 +3,20 @@
 
 /* Database storage */
 static DB_User_t user_db[] = {
-    { "12345678", "4321", 4 , false,0},
+    { "00000000", "0000", 4 , false,0},
+    { "11111111", "0000", 5, false,1 },
+    { "22222222", "0000", 4 , false,2},
+	{ "33333333", "0000", 4 , false,3},
+	{ "63663900", "0000", 4 , false,1},
+	{ "42783600", "0000", 4 , false,2},
+	{ "45947300", "0000", 4 , false,3},
+	{ "60612683", "0000", 4 , false,1},
+	{ "60612685", "0000", 4 , false,2},
+    { DB_ADMIN_ID, DB_ADMIN_PIN, 4 , false, 2}
+};
+
+/*static DB_User_t user_db[] = {
+    { "00000000", "0000", 4 , false,0},
     { "87654321", "11111", 5, false,0 },
     { "00000001", "0000", 4 , false,0},
 	{ "63913050", "0000", 4 , false,0},
@@ -13,7 +26,7 @@ static DB_User_t user_db[] = {
 	{ "60612683", "0000", 4 , false,1},
 	{ "60612685", "0000", 4 , false,2},
     { DB_ADMIN_ID, DB_ADMIN_PIN, 4 , false, 2}
-};
+};*/
 
 static const int DB_USER_COUNT = sizeof(user_db) / sizeof(user_db[0]);
 
@@ -21,8 +34,8 @@ static const int DB_USER_COUNT = sizeof(user_db) / sizeof(user_db[0]);
 
 void DB_Init(void)
 {
-    DB_DeleteUser(2); // delete user at index 2
-    DB_DeleteUser(3); // delete user at index 3
+   // DB_DeleteUser(2); // delete user at index 2
+    //DB_DeleteUser(3); // delete user at index 3
 }
 
 int DB_FindUserById(const char *id)

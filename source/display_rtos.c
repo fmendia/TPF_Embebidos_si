@@ -119,12 +119,12 @@ void Display_TaskCreate(void){
 
  void display_string4(const char* str)
  {
-	
+
 		  for (int j = 0; j < NUMBER_DISPLAYS; ++j) {
         int disp_pos = 3 - j; /* leftmost -> pos 3 */
         display_char(str[j], disp_pos);
     }
-	 
+
  }
 
 void clear_display(void){
@@ -224,7 +224,7 @@ void refresh_display(void){
 			OSMutexPend((OS_MUTEX *)&MyMutex,(OS_TICK)0, (OS_OPT)OS_OPT_PEND_BLOCKING, (CPU_TS *)&ts, (OS_ERR*)&os_err);
 
 			num2disp(display_buffer[digit]);
-			led_select(selected_led); //Only for debug
+			//led_select(selected_led); //Only for debug
 
 			OSMutexPost((OS_MUTEX *)&MyMutex,
 								(OS_OPT)OS_OPT_PEND_BLOCKING,
