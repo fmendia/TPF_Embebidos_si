@@ -3,31 +3,19 @@
 
 // ---------------- CONFIG ----------------
 
-static const Color_t floor_color[MAX_FLOORS] = {
-    COLOR_RED,
-    COLOR_BLUE,
-    COLOR_GREEN
-};
+#define MAX_FLOORS 3
+#define MAX_PEOPLE_PER_FLOOR 4
+
 
 // Estado
 static uint8_t people_per_floor[MAX_FLOORS];
 static Color_t matrix_state[64];
+static Color_t matrix_brig[64];
+static ColorEnum_t floor_color[MAX_FLOORS];
 
+static brillo = 20;
 // ---------------- COLOR MAP ----------------
 
-static void Color_To_RGB(Color_t c, uint8_t *r, uint8_t *g, uint8_t *b)
-{
-    switch (c) {
-        case COLOR_RED:     *r = 20; *g = 0;  *b = 0;  break;
-        case COLOR_GREEN:   *r = 0;  *g = 20; *b = 0;  break;
-        case COLOR_BLUE:    *r = 0;  *g = 0;  *b = 20; break;
-        case COLOR_YELLOW:  *r = 20; *g = 20; *b = 0;  break;
-        case COLOR_CYAN:    *r = 0;  *g = 20; *b = 20; break;
-        case COLOR_MAGENTA: *r = 20; *g = 0;  *b = 20; break;
-        case COLOR_WHITE:   *r = 20; *g = 20; *b = 20; break;
-        default:            *r = 0;  *g = 0;  *b = 0;  break;
-    }
-}
 
 // ---------------- UTIL ----------------
 
@@ -66,11 +54,8 @@ static void Draw_Person(uint8_t floor, uint8_t person, Color_t color)
 // Push completo al WS2812
 static void Matrix_Push(void)
 {
-    uint8_t r, g, b;
-
     for (uint8_t i = 0; i < 64; i++) {
-        Color_To_RGB(matrix_state[i], &r, &g, &b);
-        Set_LED(i, r, g, b); // Actualiza el buffer interno
+        Set_LED(i, matrix_state[i].red, matrix_state[i].green, matrix_state[i].blue);
     }
 
     WS2812_Refresh(); // Prepara el buffer DMA
@@ -81,6 +66,10 @@ static void Matrix_Push(void)
 
 void Matrix_Init(void)
 {
+    floor_color[0] = COLOR_ORANGE_LIGHT;
+    floor_color[1] = COLOR_PINK_LIGHT;
+    floor_color[2] = COLOR_YELLOW_LIGHT;
+    
     WS2812_Init();
     //Matrix_Clear();
 }
@@ -88,7 +77,7 @@ void Matrix_Init(void)
 void Matrix_Clear(void)
 {
     for (uint8_t i = 0; i < 64; i++)
-        matrix_state[i] = COLOR_OFF;
+        matrix_state[i] = COLOR_MAP[COLOR_OFF];
 
     for (uint8_t f = 0; f < MAX_FLOORS; f++)
         people_per_floor[f] = 0;
@@ -104,7 +93,7 @@ void Matrix_AddPerson(uint8_t floor)
    people_per_floor[floor]++;
     Draw_Person(floor,
                 people_per_floor[floor],
-                floor_color[floor]);
+                COLOR_MAP[floor_color[floor] + people_per_floor[floor]-1]);
     Matrix_Push();
 
 }
@@ -115,8 +104,23 @@ void Matrix_RemovePerson(uint8_t floor)
 
     Draw_Person(floor,
                 people_per_floor[floor],
-                COLOR_OFF);
+                COLOR_MAP[COLOR_OFF]);
     people_per_floor[floor]--;
 
+    Matrix_Push();
+}
+
+void Matrix_Brightness(uint8_t bri)
+{
+ for (uint8_t i = 0; i < 64; i++) {
+        Set_LED(i, bri, bri, bri);
+    }
+    brillo = bri;
+    WS2812_Refresh(); // Prepara el buffer DMA
+    WS2812_Send(); // Envía los datos al LED strip
+}
+
+void Matrix_Restore(void)
+{
     Matrix_Push();
 }

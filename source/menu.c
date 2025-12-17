@@ -33,6 +33,7 @@
 typedef enum {
     S_MAIN_MENU = 0,
     S_BRIGHTNESS,
+    S_MATRIX_BRIGHTNESS,
     S_ID_INPUT,
     S_PIN_INPUT,
     S_WELCOME,
@@ -85,6 +86,8 @@ typedef struct {
     char scroll_msg[16]; //For scrolling messages
 
     uint16_t idx; //Index of the user being processed
+
+    int user_floor; //For add user to floor
 } menu_menu_context_t;
 
 static menu_menu_context_t menu_context;
@@ -128,7 +131,8 @@ static void handle_entered_pin_range_error(void);
 static void handle_entered_pin_success(void);
 static void handle_entered_pin_error(void);
 static void return_menu(void);
-
+static void render_floor(int floor);
+static void render_matrix_brightness(int bri);
 /* render main menu option */
 static const char *main_texts[3] = { "ID  ", "BRIG", "PIN " };
 
@@ -221,6 +225,8 @@ void Menu_Tick(void)
             case S_ADD_USER_ID: render_id_input(); break;
             case S_ADD_USER_PIN: render_pin_input(); break;
             case S_DELETE_USER: render_id_input(); break;
+            case S_SELECT_FLOOR: break;
+            case S_MATRIX_BRIGHTNESS: break;
             case S_RANGE:
                  menu_context.state_ms_acc += MENU_CURSOR_BLINK_MS;
                 if (menu_context.state_ms_acc >= DONE_MS) {
@@ -287,13 +293,22 @@ static void render_menu_admin(void)
     if (menu_context.menu_admin_index == 0) {
         display_string4("ADD ");
     }
-    else {
+    else if(menu_context.menu_admin_index == 1) {
        display_string4("DEL ");
+    }
+    else 
+    {
+         display_string4("MBRI ");
     }
 
 }
 /* render brightness preview: show 'B' + digit */
 static void render_brightness(int bri)
+{
+    char t[5] = { ' ', 'B', (char)('0' + bri), ' ' };
+    display_string4(t);
+}
+static void render_matrix_brightness(int bri)
 {
     char t[5] = { ' ', 'B', (char)('0' + bri), ' ' };
     display_string4(t);
@@ -450,6 +465,29 @@ static void handle_encoder_move_int(int32_t delta)
         pin_edit = c;
         render_pin_input();
     }
+    else if (menu_context.state == S_SELECT_FLOOR)
+    {
+        menu_context.user_floor += (delta > 0) ? 1 : -1;
+        if (menu_context.user_floor < 0) menu_context.user_floor = 0;
+        if (menu_context.user_floor > 3) menu_context.user_floor = 3;
+        render_floor(menu_context.user_floor);
+    }
+    else if (menu_context.state = S_MATRIX_BRIGHTNESS)
+    {
+        static uint8_t Mbri = 20;
+        Mbri += (delta > 0) ? 1 : -1;
+        if (Mbri < 1) Mbri = 1;
+        if (Mbri > 255) Mbri = 255;
+        render_matrix_brightness(Mbri);
+        Matrix_Brightness(Mbri);
+        for(int i = 100000; i>0; i--);
+    }
+}
+
+static void render_floor(int floor)
+{
+     char t[5] = { 'F', 'L', ' ', (char)('0' + floor)};
+    display_string4(t);
 }
 //Una vez apretado enter 'E', proceso el pin ingresado segun en que estado estoy.
 static void process_entered_pin_for_user(void)
@@ -527,11 +565,12 @@ static void handle_entered_pin_success(void)
             display_string4("DONE");
             break;
         case S_ADD_USER_PIN:
-                DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor,1); //Agrego usuario como no admin y en piso 1
-                menu_context.state = S_ADMIN_DONE;
-                menu_context.state_ms_acc = 0;
-                 menu_context.pin_cursor = 0;
-                display_string4("DONE");
+                //DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor,1); //Agrego usuario como no admin y en piso 1
+                menu_context.state = S_SELECT_FLOOR;
+               // menu_context.state = S_ADMIN_DONE;
+                // menu_context.state_ms_acc = 0;
+                //  menu_context.pin_cursor = 0;
+                display_string4("FLR ");
             break;
         default:
             break;
@@ -701,14 +740,23 @@ static void handle_button_shortpress (void)
         menu_context.state = S_MAIN_MENU;
         render_main_menu();
         break;
+    case S_MATRIX_BRIGHTNESS:
+        Matrix_Restore();
+        menu_context.state = S_MENU_ADMIN;
+        render_menu_admin();
+        break;
     case S_MENU_ADMIN://Selecciono la opcion del menu admin
         if (menu_context.menu_admin_index == 0) //ADD USER
         {
             menu_context.state = S_ADD_USER_ID;
         }
-        else //DELETE USER
+        else if (menu_context.menu_admin_index == 1) //DELETE USER
         {
             menu_context.state = S_DELETE_USER;
+        }
+        else
+        {
+            menu_context.state = S_MATRIX_BRIGHTNESS;
         }
         memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));//borro buffer
         menu_context.id_cursor = 0;
@@ -764,6 +812,13 @@ static void handle_button_shortpress (void)
                 render_pin_input();
             }
         }
+        break;
+    case S_SELECT_FLOOR:
+        DB_AddUser(menu_context.id_buf, menu_context.pin_buf, menu_context.pin_cursor,menu_context.user_floor); //Agrego usuario como no admin y en piso 1
+        menu_context.state = S_MENU_ADMIN;
+        display_string4("DONE");
+        menu_context.state_ms_acc = 0;
+        menu_context.pin_cursor = 0;
         break;
     default:
         break;
@@ -826,8 +881,8 @@ static void main_move(int delta)
 static void menu_admin_move(int delta)
 {
     menu_context.menu_admin_index += delta;
-    if (menu_context.menu_admin_index < 0) menu_context.menu_admin_index = 1;
-    if (menu_context.menu_admin_index > 1) menu_context.menu_admin_index = 0;
+    if (menu_context.menu_admin_index < 0) menu_context.menu_admin_index = 2;
+    if (menu_context.menu_admin_index > 2) menu_context.menu_admin_index = 0;
     render_menu_admin();
 }
 
