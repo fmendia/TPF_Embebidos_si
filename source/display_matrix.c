@@ -5,7 +5,7 @@
 
 #define MAX_FLOORS 3
 #define MAX_PEOPLE_PER_FLOOR 4
-
+static inline uint8_t scale(uint8_t c);
 
 // Estado
 static uint8_t people_per_floor[MAX_FLOORS];
@@ -55,11 +55,14 @@ static void Draw_Person(uint8_t floor, uint8_t person, Color_t color)
 static void Matrix_Push(void)
 {
     for (uint8_t i = 0; i < 64; i++) {
-        Set_LED(i, matrix_state[i].red, matrix_state[i].green, matrix_state[i].blue);
+        Set_LED(i,
+            scale(matrix_state[i].red),
+            scale(matrix_state[i].green),
+            scale(matrix_state[i].blue));
     }
 
-    WS2812_Refresh(); // Prepara el buffer DMA
-    WS2812_Send(); // Envía los datos al LED strip
+    WS2812_Refresh();
+    WS2812_Send();
 }
 
 // ---------------- API ----------------
@@ -112,15 +115,17 @@ void Matrix_RemovePerson(uint8_t floor)
 
 void Matrix_Brightness(uint8_t bri)
 {
- for (uint8_t i = 0; i < 64; i++) {
-        Set_LED(i, bri, bri, bri);
-    }
     brillo = bri;
-    WS2812_Refresh(); // Prepara el buffer DMA
-    WS2812_Send(); // Envía los datos al LED strip
+    Matrix_Push();
 }
+
 
 void Matrix_Restore(void)
 {
     Matrix_Push();
+}
+
+static inline uint8_t scale(uint8_t c)
+{
+    return (uint8_t)((c * brillo) >> 8);
 }

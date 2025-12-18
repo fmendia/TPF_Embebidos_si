@@ -472,7 +472,7 @@ static void handle_encoder_move_int(int32_t delta)
         if (menu_context.user_floor > 3) menu_context.user_floor = 3;
         render_floor(menu_context.user_floor);
     }
-    else if (menu_context.state = S_MATRIX_BRIGHTNESS)
+    else if (menu_context.state == S_MATRIX_BRIGHTNESS)
     {
         static uint8_t Mbri = 20;
         Mbri += (delta > 0) ? 1 : -1;
