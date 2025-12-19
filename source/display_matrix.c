@@ -13,7 +13,7 @@ static Color_t matrix_state[64];
 static Color_t matrix_brig[64];
 static ColorEnum_t floor_color[MAX_FLOORS];
 
-static uint8_t brillo_level = 5; // 0..5
+static uint8_t brillo_level = 7; // 0..5
 
 // LUT: escala 0..5 -> multiplicador 0..255 (lineal; ajustar si quieres otra curva)
 static const uint8_t brightness_lut[8] = {0, 3, 15, 37, 70, 114, 174, 255};
@@ -71,13 +71,13 @@ static void Draw_Person(uint8_t floor, uint8_t person, Color_t color)
 }
 
 // Push completo al WS2812
-static void Matrix_Push(void)
+static void Matrix_Push(const Color_t* buffer_to_show)
 {
     for (uint8_t i = 0; i < 64; i++) {
         Set_LED(i,
-            scale(matrix_state[i].red),
-            scale(matrix_state[i].green),
-            scale(matrix_state[i].blue));
+            scale(buffer_to_show[i].red),
+            scale(buffer_to_show[i].green),
+            scale(buffer_to_show[i].blue));
     }
 
     WS2812_Refresh();
@@ -104,7 +104,7 @@ void Matrix_Clear(void)
     for (uint8_t f = 0; f < MAX_FLOORS; f++)
         people_per_floor[f] = 0;
 
-    Matrix_Push();
+    Matrix_Push(matrix_state);
 }
 
 void Matrix_AddPerson(uint8_t floor)
@@ -116,7 +116,7 @@ void Matrix_AddPerson(uint8_t floor)
     Draw_Person(floor,
                 people_per_floor[floor],
                 COLOR_MAP[floor_color[floor] + people_per_floor[floor]-1]);
-    Matrix_Push();
+    Matrix_Push(matrix_state);
 
 }
 void Matrix_RemovePerson(uint8_t floor)
@@ -129,28 +129,22 @@ void Matrix_RemovePerson(uint8_t floor)
                 COLOR_MAP[COLOR_OFF]);
     people_per_floor[floor]--;
 
-    Matrix_Push();
+    Matrix_Push(matrix_state);
 }
 
 void Matrix_Brightness(uint8_t level)
 {
     if (level > 7) level = 7;
+    if(level == 5 || level == 6) level = 7; //Niveles altos van todos al maximo
     brillo_level = level;
+
     
-    for (uint8_t i = 0; i < 64; i++) {
-        Set_LED(i,
-            scale(matrix_brig[i].red),
-            scale(matrix_brig[i].green),
-            scale(matrix_brig[i].blue));
-        }
-        
-        WS2812_Refresh();
-        WS2812_Send();
+    Matrix_Push(matrix_brig);
 }
         
 void Matrix_Restore(void)
 {
-    Matrix_Push();
+    Matrix_Push(matrix_state);
 }
 
 /**
@@ -219,5 +213,5 @@ void Matrix_Signal_Floor(uint8_t signal)
 
 
 
-    Matrix_Push();
+    Matrix_Push(matrix_state);
 }
