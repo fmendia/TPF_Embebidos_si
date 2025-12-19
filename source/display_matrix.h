@@ -15,7 +15,11 @@
 #define MAX_FLOORS 3
 #define MAX_PEOPLE_PER_FLOOR 4 // Cada persona = bloque 2x2
 
-
+#define SIGNAL_MENU_USER 0
+#define SIGNAL_MENU_ADMIN 1
+#define SIGNAL_OLD_PIN 2
+#define SIGNAL_NEW_PIN 3
+#define SIGNAL_OFF 4
 
 /**
  * @brief Set the color of a specific LED in the matrix
@@ -60,5 +64,12 @@ void Matrix_RemovePerson(uint8_t floor);
 void Matrix_Brightness(uint8_t bri);
 
 void Matrix_Restore(void);
+
+/**
+ * @brief Indicate a signal on the matrix (e.g., menu selection, PIN status)
+ * 
+ * @param signal The signal to display
+ */
+void Matrix_Signal_Floor(uint8_t signal);
 
 #endif //DISPLAY_MATRIX_H

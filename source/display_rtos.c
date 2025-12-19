@@ -240,6 +240,7 @@ void ScrollMessage(char *message)
 {
     static uint32_t index = 0;
     static char prev_message[20];
+    
     uint32_t length = strlen(message);
 
     // Si el mensaje cambió, reiniciamos

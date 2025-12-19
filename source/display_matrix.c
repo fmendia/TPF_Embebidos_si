@@ -13,10 +13,29 @@ static Color_t matrix_state[64];
 static Color_t matrix_brig[64];
 static ColorEnum_t floor_color[MAX_FLOORS];
 
-static brillo = 20;
+static uint8_t brillo_level = 5; // 0..5
+
+// LUT: escala 0..5 -> multiplicador 0..255 (lineal; ajustar si quieres otra curva)
+static const uint8_t brightness_lut[8] = {0, 3, 15, 37, 70, 114, 174, 255};
+
+
 // ---------------- COLOR MAP ----------------
 
-
+static void Matrix_Init_Brightness(void)
+{
+    
+    for (uint8_t row = 0; row < 8; row++) {
+        Color_t color;
+        if (row < 2) color = COLOR_MAP[COLOR_RED];
+        else if (row < 4) color = COLOR_MAP[COLOR_GREEN];
+        else if (row < 6) color = COLOR_MAP[COLOR_BLUE];
+        else color = COLOR_MAP[COLOR_WHITE];
+        
+        for (uint8_t col = 0; col < 8; col++) {
+            matrix_brig[row * 8 + col] = color;
+        }
+    }
+}
 // ---------------- UTIL ----------------
 
 // floor: 0, 1, o 2
@@ -72,7 +91,7 @@ void Matrix_Init(void)
     floor_color[0] = COLOR_ORANGE_LIGHT;
     floor_color[1] = COLOR_PINK_LIGHT;
     floor_color[2] = COLOR_YELLOW_LIGHT;
-    
+    Matrix_Init_Brightness();
     WS2812_Init();
     //Matrix_Clear();
 }
@@ -113,19 +132,92 @@ void Matrix_RemovePerson(uint8_t floor)
     Matrix_Push();
 }
 
-void Matrix_Brightness(uint8_t bri)
+void Matrix_Brightness(uint8_t level)
 {
-    brillo = bri;
-    Matrix_Push();
+    if (level > 7) level = 7;
+    brillo_level = level;
+    
+    for (uint8_t i = 0; i < 64; i++) {
+        Set_LED(i,
+            scale(matrix_brig[i].red),
+            scale(matrix_brig[i].green),
+            scale(matrix_brig[i].blue));
+        }
+        
+        WS2812_Refresh();
+        WS2812_Send();
 }
-
-
+        
 void Matrix_Restore(void)
 {
     Matrix_Push();
 }
 
-static inline uint8_t scale(uint8_t c)
+/**
+ * Escala un componente de color individual (0-255) basado en el nivel global.
+ * Utiliza aritmética de punto fijo para mantener la precisión del color.
+ */
+static inline uint8_t scale(uint8_t color_val)
 {
-    return (uint8_t)((c * brillo) >> 8);
+    if (brillo_level > 7) brillo_level = 7; // Protección
+    
+    uint16_t scale_factor = brightness_lut[brillo_level]; 
+    uint32_t producto = (uint32_t)color_val * scale_factor;
+    // Operación rápida: (Color * Factor) / 256
+    return (uint8_t)(producto >> 8);
+}
+
+
+void Matrix_Signal_Floor(uint8_t signal)
+{
+    switch (signal) {
+        case SIGNAL_MENU_USER:
+            for (uint8_t row = 0; row < 8; row++) {
+                matrix_state[row * 8 + 6] = COLOR_MAP[COLOR_BLUE];
+                matrix_state[row * 8 + 7] = COLOR_MAP[COLOR_BLUE];
+                }
+            break;
+        case SIGNAL_MENU_ADMIN:
+            for (uint8_t row = 0; row < 8; row++) {
+                matrix_state[row * 8 + 6] = COLOR_MAP[COLOR_PURPLE];
+                matrix_state[row * 8 + 7] = COLOR_MAP[COLOR_PURPLE];
+                }
+            break;
+        case SIGNAL_OLD_PIN:
+            {
+                Color_t color;
+                uint8_t row = 0;
+                while (row < 8) {
+                    color = (row < 4) ? COLOR_MAP[COLOR_CYAN] : COLOR_MAP[COLOR_OFF];
+                    matrix_state[row * 8 + 6] = color;
+                    matrix_state[row * 8 + 7] = color;
+                    row++;
+                    }
+                break;
+            }
+        case SIGNAL_NEW_PIN:
+            {
+                Color_t color;
+                uint8_t row = 0;
+                while (row < 8) {
+                    color = (row >= 4) ? COLOR_MAP[COLOR_CYAN] : COLOR_MAP[COLOR_OFF];
+                    matrix_state[row * 8 + 6] = color;
+                    matrix_state[row * 8 + 7] = color;
+                    row++;
+                    }
+                break;
+            }
+        case SIGNAL_OFF:
+            for (uint8_t row = 0; row < 8; row++) {
+                matrix_state[row * 8 + 6] = COLOR_MAP[COLOR_OFF];
+                matrix_state[row * 8 + 7] = COLOR_MAP[COLOR_OFF];
+                }
+            break;
+        default:
+            return;
+    }
+
+
+
+    Matrix_Push();
 }
