@@ -42,7 +42,7 @@ uint8_t brightness = DEFAULT_BRIGHTNESS; // Default brightness level
  bool flag = 0;
  static uint32_t mask =0;
 
- 
+ static uint8_t scroll_index = 0;
 static OS_MUTEX MyMutex;
  /*******************************************************************************
   *******************************************************************************
@@ -235,17 +235,20 @@ void refresh_display(void){
 			pwm_counter = (pwm_counter + 1) % (VERY_HIGH+1); // 5 levels of brightness
 		 }
 }
-
+void ResetScroll(void)
+{
+    scroll_index = 0;
+}
 void ScrollMessage(char *message)
 {
-    static uint32_t index = 0;
+    //static uint32_t index = 0;
     static char prev_message[20];
     
     uint32_t length = strlen(message);
 
     // Si el mensaje cambió, reiniciamos
     if (strcmp(message, prev_message) != 0) {
-        index = 0;
+        scroll_index = 0;
         strncpy(prev_message, message, sizeof(prev_message) - 1);
         prev_message[sizeof(prev_message) - 1] = '\0'; // seguridad
         clear_display();
@@ -255,12 +258,12 @@ void ScrollMessage(char *message)
     uint32_t total_length = length + NUMBER_DISPLAYS / 2;
 
     // Selección del caracter a mostrar
-    char c = (index < length) ? message[index] : ' ';
+    char c = (scroll_index < length) ? message[scroll_index] : ' ';
 
     shift_display_reposition(1, c);
 
     // Avanzar índice con wrap-around
-    index = (index + 1) % total_length;
+    scroll_index = (scroll_index + 1) % total_length;
 }
 
 

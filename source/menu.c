@@ -278,6 +278,7 @@ static void render_main_menu(void)
 {
     if (menu_context.main_index < 2) {
         display_string4(main_texts[menu_context.main_index]);
+        ResetScroll();
     }
     else {
         strcpy(menu_context.scroll_msg, "CHG PIN   ");
