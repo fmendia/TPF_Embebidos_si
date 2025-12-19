@@ -23,7 +23,7 @@ CPU_STK LedsTaskStk[LEDS_TASK_STACKSIZE];
  ******************************************************************************/
 
 void Led_Set(uint8_t led);
-
+void Leds_Refresh(void);
 /*******************************************************************************
  * GLOBAL VARIABLES
  ******************************************************************************/
@@ -31,6 +31,8 @@ void Led_Set(uint8_t led);
 bool leds[3] = {0}; // Array to hold the state of each LED [0:d3, 1:d2, 2:d1]
 
 bool color_leds = {0}; // Array to hold the state of each COLOR LED [0:R, 1:G, 2:B]
+static uint8_t mux_led = 0;
+
 
 /*******************************************************************************
  *******************************************************************************
@@ -56,20 +58,9 @@ void Leds_Task(void *p_arg){
     OS_ERR err;
 
     while (1) {
-        // Update LEDs based on their states
-        for (uint8_t led = 0; led < 3; led++) {
-            if (leds[led]) {
-                Led_Set(led);
-                break; // Only one LED can be on at a time
-            }
-            if (led == 2) {
-                Led_Set(3); // Turn off all LEDs if none are on
-            }
+            Leds_Refresh();
+            OSTimeDlyHMSM(0, 0, 0, 1, OS_OPT_TIME_HMSM_STRICT, &err);
         }
-
-        // Sleep until next update
-        OSTimeDlyHMSM(0, 0, 0, LED_SLEEP_TIME, OS_OPT_TIME_HMSM_STRICT, &err);
-    }
 }
 
 void Leds_TaskCreate(void){
@@ -152,5 +143,22 @@ void Led_Set(uint8_t led) {
             gpioWrite(STATUS0, LOW);
             gpioWrite(STATUS1, LOW);
             break;
+    }
+}
+
+void Leds_Refresh(void)
+{
+    // 1. Apagar todos antes de cambiar el selector
+    Led_Set(3);   // All OFF
+
+    // 2. Si el LED actual está habilitado, prenderlo
+    if (leds[mux_led]) {
+        Led_Set(mux_led);
+    }
+
+    // 3. Avanzar al siguiente LED
+    mux_led++;
+    if (mux_led >= 3) {
+        mux_led = 0;
     }
 }

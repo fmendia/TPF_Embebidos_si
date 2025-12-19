@@ -132,6 +132,7 @@ static void handle_entered_pin_error(void);
 static void return_menu(void);
 static void render_floor(int floor);
 static void render_matrix_brightness(int bri);
+static void show_attempts(int attempts);
 /* render main menu option */
 static const char *main_texts[3] = { "ID  ", "BRIG", "PIN " };
 
@@ -206,7 +207,7 @@ void Menu_HandleMessage(UI_Message_t *pmsg)
    We accumulate time and toggle cursor every MENU_CURSOR_BLINK_MS.
    Para hacer los renders necesarios cuando no se ingresa ningun msg*/
 void Menu_Tick(void)
-{   
+{
     menu_context.idle_ms += 200u;
     menu_context.blink_ms_acc += 200u;
     if (menu_context.idle_ms >= TIMEOUT_MS)
@@ -255,7 +256,7 @@ void Menu_Tick(void)
                 default:
                     break;
         }
-        
+
     }
         else if(menu_context.blink_ms_acc >= SCROLL_MESSAGE_MS)
         {
@@ -279,7 +280,7 @@ static void render_main_menu(void)
         display_string4(main_texts[menu_context.main_index]);
     }
     else {
-        strcpy(menu_context.scroll_msg, "CHG PIN   "); 
+        strcpy(menu_context.scroll_msg, "CHG PIN   ");
         ScrollMessage(menu_context.scroll_msg);
     }
 }
@@ -291,7 +292,7 @@ static void render_menu_admin(void)
     else if(menu_context.menu_admin_index == 1) {
        display_string4("DEL ");
     }
-    else 
+    else
     {
          display_string4("MBRI ");
     }
@@ -362,6 +363,8 @@ static void enter_main_menu(void)
 {
     menu_context.state = S_MAIN_MENU;
     menu_context.main_index = 0;
+    menu_context.pin_attempts = 0;
+	show_attempts(menu_context.pin_attempts);
     Matrix_Signal_Floor(SIGNAL_MENU_USER);
     render_main_menu();
 }
@@ -590,6 +593,7 @@ static void handle_entered_pin_error(void)
                     pin_edit = '0';
                     id_edit = '0';
                 }
+                show_attempts(menu_context.pin_attempts);
             break;
         case S_CHANGE_PIN_NEWPIN:
             menu_context.state = S_ERROR;
@@ -893,6 +897,28 @@ char select_char_with_encoder(int32_t delta)
         index = 0;
 
     return char_list[index];
+}
+
+static void show_attempts(int attempts)
+{
+    switch (attempts)
+    {
+    case 3:
+        Led_Control(3,true);
+        break;
+    case 2:
+        Led_Control(1,true);
+        Led_Control(2,true);
+        break;
+    case 1:
+        Led_Control(1,true);
+        break;
+    case 0:
+        Led_Control(0,false);
+        break;
+    default:
+        break;
+    }
 }
 
 /* ------------------ End of file ------------------ */
