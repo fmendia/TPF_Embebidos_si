@@ -7,7 +7,7 @@
 /* Constants */
 #define DB_ID_LENGTH        8
 #define DB_PIN_MAX_LENGTH   5
-#define DB_ADMIN_ID         "37159500"
+#define DB_ADMIN_ID         "46605700"
 #define DB_ADMIN_PIN        "1234"
 
 /* User entry structure */
@@ -109,4 +109,6 @@ void DB_SetUserInBuilding(int user_idx, bool in_building);
 bool DB_IsUserInBuilding(int user_idx);
 
 uint8_t DB_GetUserFloor(int user_idx);
+
+void DB_Reset(void);
 #endif /* DATABASE_H */

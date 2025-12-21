@@ -8,6 +8,11 @@
 #include "msg_pool.h"      // <-- NUEVO
 #include "display_matrix.h"
 
+#include "gpio.h" //Para medir tiempo de CPU
+//    gpioMode(PORTNUM2PIN(PB,9), OUTPUT);
+//    gpioWrite(PORTNUM2PIN(PB,9), HIGH);
+//    gpioWrite(PORTNUM2PIN(PB,9), LOW);
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -71,6 +76,7 @@ static void TaskStart(void *p_arg)
     Encoder_TaskCreate();
     Card_TaskCreate();
     Display_TaskCreate();
+    Leds_TaskCreate();
 
     //Heartbeat, para ver que sigue corriendo
     while (1) {

@@ -35,7 +35,7 @@ const uint8_t segment_pins[8] = {
  //void num2disp(uint32_t num);
  //void display_select(uint8_t digit);
 
- void Display_Callback(void);
+ //void Display_Callback(void);
 
  uint32_t display_buffer[NUMBER_DISPLAYS] = {0}; // Buffer to hold the display content
 uint8_t brightness = DEFAULT_BRIGHTNESS; // Default brightness level
@@ -55,8 +55,9 @@ static void TaskDisplay(void *p_arg){
 	OS_ERR os_err;
 
 	while(1){
-
+        gpioWrite(PORTNUM2PIN(PD,3), HIGH); // Prendo el PIN de consumo CPU
 		refresh_display(); //Refresh display buffer
+        gpioWrite(PORTNUM2PIN(PD,3), LOW); // Apago el PIN de consumo CPU
 		OSTimeDlyHMSM(0u, 0u, 0u, 1u, OS_OPT_TIME_HMSM_STRICT, &os_err);
 	}
 }
@@ -82,23 +83,24 @@ void Display_TaskCreate(void){
 
  void Display_Init (void)
  {
-	 OS_ERR err;
-     gpioMode(STATUS0, OUTPUT);
-     gpioMode(STATUS1, OUTPUT);
-     gpioMode(SEGA, OUTPUT);
-     gpioMode(SEGB, OUTPUT);
-     gpioMode(SEGC, OUTPUT);
-     gpioMode(SEGD, OUTPUT);
-     gpioMode(SEGE, OUTPUT);
-     gpioMode(SEGF, OUTPUT);
-     gpioMode(SEGG, OUTPUT);
-     gpioMode(SEGDP, OUTPUT);
-     gpioMode(SEL0, OUTPUT);
-     gpioMode(SEL1, OUTPUT);
-     OSMutexCreate(&MyMutex, "MyMutex", &err);
-     mask = seg2port(0xFF);
+    OS_ERR err;
+    gpioMode(STATUS0, OUTPUT);
+    gpioMode(STATUS1, OUTPUT);
+    gpioMode(SEGA, OUTPUT);
+    gpioMode(SEGB, OUTPUT);
+    gpioMode(SEGC, OUTPUT);
+    gpioMode(SEGD, OUTPUT);
+    gpioMode(SEGE, OUTPUT);
+    gpioMode(SEGF, OUTPUT);
+    gpioMode(SEGG, OUTPUT);
+    gpioMode(SEGDP, OUTPUT);
+    gpioMode(SEL0, OUTPUT);
+    gpioMode(SEL1, OUTPUT);
 
-     //SysTick_Manager(Display_Callback, 1);
+    gpioMode(PORTNUM2PIN(PD,3), OUTPUT); // PIN de consumo CPU
+
+    OSMutexCreate(&MyMutex, "MyMutex", &err);
+    mask = seg2port(0xFF);
  }
 
  void display_char(uint8_t digit, uint8_t position){

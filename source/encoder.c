@@ -57,6 +57,8 @@ void Encoder_Init (void){
     gpioMode(RCHB, INPUT);
     gpioMode(R_SWITCH, INPUT);
 
+    gpioMode(PORTNUM2PIN(PB,9), OUTPUT); //PIN para consumo CPU
+
     memset(&encoderButton, 0, sizeof(encoderButton));
 }
 
@@ -66,6 +68,7 @@ void EncoderTask(void *p_arg){
     OS_ERR err;
 
     while (1) {
+        gpioWrite(PORTNUM2PIN(PB,9), HIGH); //Prendo el PIN de consumo CPU
         /* muestreo */
         pin_a = gpioRead(RCHA);
         pin_b = gpioRead(RCHB);
@@ -116,7 +119,7 @@ void EncoderTask(void *p_arg){
             /* reset longPressSent when button released */
             longPressSent = false;
         }
-
+        gpioWrite(PORTNUM2PIN(PB,9), LOW); // Apago el PIN de consumo CPU
         /* dormir */
         OSTimeDlyHMSM(0,0,0,ENCODER_SLEEP_TIME, OS_OPT_TIME_HMSM_STRICT, &err);
     }

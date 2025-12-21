@@ -244,3 +244,11 @@ uint8_t DB_GetUserFloor(int user_idx)
 	    }
 	    return user_db[user_idx].user_floor;
 }
+
+void DB_Reset(void)
+{
+    for (int i=0; i< DB_USER_COUNT; i++)
+    {
+        DB_SetUserInBuilding(i, false);
+    }
+}

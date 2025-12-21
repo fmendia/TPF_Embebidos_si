@@ -215,3 +215,19 @@ void Matrix_Signal_Floor(uint8_t signal)
 
     Matrix_Push(matrix_state);
 }
+
+
+void Matrix_Reset(void)
+{
+    for (int floor=0; floor<3; floor++)
+    {
+        if(people_per_floor[floor]>0)
+        {
+        Draw_Person(floor,
+                    people_per_floor[floor],
+                    COLOR_MAP[COLOR_OFF]);
+                    people_per_floor[floor]--;
+        }
+    Matrix_Push(matrix_state);
+    }
+}

@@ -72,4 +72,6 @@ void Matrix_Restore(void);
  */
 void Matrix_Signal_Floor(uint8_t signal);
 
+void Matrix_Reset(void);
+
 #endif //DISPLAY_MATRIX_H

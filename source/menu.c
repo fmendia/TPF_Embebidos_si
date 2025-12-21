@@ -293,9 +293,12 @@ static void render_menu_admin(void)
     else if(menu_context.menu_admin_index == 1) {
        display_string4("DEL ");
     }
-    else
+    else if(menu_context.menu_admin_index ==2)
     {
          display_string4("MBRI ");
+    }
+    else{
+        display_string4("RST ");
     }
 }
 /* render brightness preview: show 'B' + digit */
@@ -754,10 +757,15 @@ static void handle_button_shortpress (void)
             menu_context.state = S_DELETE_USER;
             render_id_input();
         }
-        else
+        else if (menu_context.menu_admin_index ==2)
         {
             menu_context.state = S_MATRIX_BRIGHTNESS;
             render_matrix_brightness(Mbri);
+        }
+        else{
+            DB_Reset();
+            Matrix_Reset();
+            enter_menu_admin();
         }
         memset(menu_context.id_buf, 0, sizeof(menu_context.id_buf));//borro buffer
         menu_context.id_cursor = 0;
@@ -879,8 +887,8 @@ static void main_move(int delta)
 static void menu_admin_move(int delta)
 {
     menu_context.menu_admin_index += delta;
-    if (menu_context.menu_admin_index < 0) menu_context.menu_admin_index = 2;
-    if (menu_context.menu_admin_index > 2) menu_context.menu_admin_index = 0;
+    if (menu_context.menu_admin_index < 0) menu_context.menu_admin_index = 3;
+    if (menu_context.menu_admin_index > 3) menu_context.menu_admin_index = 0;
     render_menu_admin();
 }
 

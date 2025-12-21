@@ -16,6 +16,8 @@
 #include "msg_pool.h"
 #include "menu.h"
 
+#include "gpio.h" //Para medir tiempo de CPU
+
 /* Queue size - ajustar si esperás ráfagas */
 #define UI_QUEUE_SIZE       12u
 
@@ -28,7 +30,7 @@ OS_Q *UI_GetQueue(void)
 }
 
 /* UI Task definitions */
-#define UI_TASK_PRIO        3u     /* recomendado: UI alto */
+#define UI_TASK_PRIO        8u     /* recomendado: UI alto */
 #define UI_TASK_STK_SIZE    512u
 
 static OS_TCB  ui_tcb;
@@ -44,6 +46,7 @@ static void UITask(void *p_arg)
     (void)p_arg;
 
     for (;;) {
+
         /* Esperar mensaje con timeout 200 ms */
         pmsg = (UI_Message_t *)OSQPend(&ui_q,
                                        200u, /* ms */
@@ -53,23 +56,29 @@ static void UITask(void *p_arg)
                                        &err);
         if (err == OS_ERR_NONE && pmsg != NULL) {
             /* Procesar mensaje en la máquina de menú */
+        	 gpioWrite(PORTNUM2PIN(PB,20), HIGH); // Prendo el PIN de consumo CPU
             Menu_HandleMessage(pmsg);
-
+            gpioWrite(PORTNUM2PIN(PB,20), LOW); // Apago el PIN de consumo CPU
             /* Liberar el bloque */
             MsgPool_Free(pmsg, &err);
             (void)err;
         } else if (err == OS_ERR_TIMEOUT) {
             /* Timeout: tick del menú (blink, timers) */
+        	 gpioWrite(PORTNUM2PIN(PB,20), HIGH); // Prendo el PIN de consumo CPU
             Menu_Tick();
+            gpioWrite(PORTNUM2PIN(PB,20), LOW); // Apago el PIN de consumo CPU
         } else {
             /* Otros errores: ignorar y continuar */
         }
+
     }
 }
 
 void UI_Init(void)
 {
     OS_ERR err;
+
+    gpioMode(PORTNUM2PIN(PB,20), OUTPUT); // PIN de consumo CPU
 
     /* Crear cola de punteros (msg_size = 0 al postear) */
     OSQCreate(&ui_q,

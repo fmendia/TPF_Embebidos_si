@@ -50,6 +50,8 @@ void Leds_Init(void) {
     gpioWrite(PIN_LED_RED, HIGH);
     gpioWrite(PIN_LED_BLUE, HIGH);
     gpioWrite(PIN_LED_GREEN, HIGH);
+
+    gpioMode(PORTNUM2PIN(PE,25), OUTPUT); //PIN para consumo CPU
 //    SysTick_Manager(Led_Callback, 25); // Con 20 se ve re brillante
 }
 
@@ -58,8 +60,11 @@ void Leds_Task(void *p_arg){
     OS_ERR err;
 
     while (1) {
+            gpioWrite(PORTNUM2PIN(PE,25), HIGH); // Prendo el PIN de consumo CPU
             Leds_Refresh();
+            gpioWrite(PORTNUM2PIN(PE,25), LOW); // Apago el PIN de consumo CPU
             OSTimeDlyHMSM(0, 0, 0, 1, OS_OPT_TIME_HMSM_STRICT, &err);
+
         }
 }
 

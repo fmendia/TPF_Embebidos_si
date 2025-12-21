@@ -42,7 +42,7 @@ static uint8_t selected_led =0;
 //Task display
 #define TASKDISP_STK_SIZE 256u
 #define TASKDISP_STK_SIZE_LIMIT	(TASKDISP_STK_SIZE / 10u)
-#define TASKDISP_PRIO 8u
+#define TASKDISP_PRIO 7u
 static OS_TCB TaskDisplayTCB;
 static CPU_STK TaskDisplayStk[TASKDISP_STK_SIZE];
 

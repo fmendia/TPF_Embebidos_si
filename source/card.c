@@ -65,6 +65,9 @@ void card_init (void)
 	gpioMode(PORT_CLOCK, INPUT);
 	gpioMode(PORT_ENABLE, INPUT);
 	gpioIRQ(PORT_CLOCK, GPIO_IRQ_FALLING_EDGE, card_IRQ_Handler);
+
+    gpioMode(PORTNUM2PIN(PB,11), OUTPUT); //PIN para consumo CPU
+    gpioMode(PORTNUM2PIN(PE,26), OUTPUT); //PIN para Consumo CPU en Interrupción
 }
 
 void Card_TaskCreate(void){
@@ -89,6 +92,7 @@ void CardTask(void *p_arg){
 	(void)p_arg;
 	OS_ERR err;
     while (1) {
+        gpioWrite(PORTNUM2PIN(PB,11), HIGH); // Prendo el PIN de consumo CPU
         /* leemos enable y determinamos si hay que validar */
         card_ports.ena_value = gpioRead(PORT_ENABLE);
         switch (ena_check())
@@ -162,6 +166,8 @@ void CardTask(void *p_arg){
             break;
         } /* end switch */
 
+        gpioWrite(PORTNUM2PIN(PB,11), LOW); // Apago el PIN de consumo CPU
+
         OSTimeDlyHMSM(0, 0, 0, CARD_SLEEP_TIME, OS_OPT_TIME_HMSM_STRICT, &err);
     } /* end while */
 }
@@ -169,6 +175,8 @@ void CardTask(void *p_arg){
 /* ISR Handler (idem a tu versión) */
 void card_IRQ_Handler(void)
 {
+    gpioWrite(PORTNUM2PIN(PE,26), HIGH); // Prendo el PIN de Consumo CPU en Interrupción
+
   	CPU_SR_ALLOC();
   	CPU_CRITICAL_ENTER();
   	OSIntEnter();
@@ -182,6 +190,7 @@ void card_IRQ_Handler(void)
     else{
         CARD_ERROR=true;
     }
+    gpioWrite(PORTNUM2PIN(PE,26), LOW); // Apago el PIN de Consumo CPU en Interrupción
 
   	OSIntExit();
 }
