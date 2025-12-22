@@ -17,7 +17,7 @@
 /*******************************************************************************
  * RTOS VARIABLES
  ******************************************************************************/
-#define LEDS_TASK_PRIO      4u		//DEFINIR BIEN!
+#define LEDS_TASK_PRIO      9u
 #define LEDS_TASK_STACKSIZE 256u
 
 extern OS_TCB   LedsTaskTCB;
